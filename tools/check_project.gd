@@ -17,6 +17,8 @@ const FORBIDDEN_TOKENS: Array[String] = [
 	"is_key_pressed", "is_physical_key_pressed", "is_key_label_pressed", "is_mouse_button_pressed",
 	"is_joy_button_pressed", "get_joy_axis", "mouse_position", "get_last_mouse_velocity",
 	"_gui_input", "_unhandled_key_input", "_shortcut_input", "_input_event",
+	# Event callbacks and any-key checks would allow "press any key" style input.
+	"func _input", "func _unhandled_input", "is_anything_pressed", "is_pressed()",
 	"mouse_entered", "mouse_exited", "physics_object_picking",
 ]
 const ACTION_CALL_PATTERN := "\\b(?:is_action\\w*|get_action_\\w*strength|get_axis|get_vector|action_press|action_release)\\s*\\(([^)]*)\\)"

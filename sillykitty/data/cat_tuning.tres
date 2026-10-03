@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CatTuning" format=3]
+
+[ext_resource type="Script" path="res://scripts/cat_tuning.gd" id="1_tuning"]
+
+[resource]
+script = ExtResource("1_tuning")
+walk_speed = 130.0
+run_speed = 230.0
+acceleration = 900.0
+arrive_slowdown = 5.0
+stop_distance = 72.0
+run_distance = 220.0
+interest_radius = 380.0
+chase_weight = 1.0
+chase_falloff = 0.6
+distraction_sense_radius = 240.0
+distraction_weight = 1.6
+engage_distance = 26.0
+engage_time = 2.2
+distraction_cooldown = 7.0
+goal_sense_radius = 150.0
+goal_weight = 3.0
+arrive_distance = 10.0
+idle_score = 0.1
+hysteresis = 0.15
+meow_cooldown = 3.0

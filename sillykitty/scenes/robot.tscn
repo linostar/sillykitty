@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/robot.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://art/shadow.svg" id="2_shadow"]
+[ext_resource type="Texture2D" path="res://art/robot_thruster.svg" id="3_thruster"]
+[ext_resource type="Texture2D" path="res://art/robot_antenna.svg" id="4_antenna"]
+[ext_resource type="Texture2D" path="res://art/robot_body.svg" id="5_body"]
+[ext_resource type="Texture2D" path="res://art/robot_face.svg" id="6_face"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_robot"]
+radius = 20.0
+
+[node name="Robot" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 1
+motion_mode = 1
+script = ExtResource("1_script")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_robot")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+texture = ExtResource("2_shadow")
+
+[node name="Hover" type="Node2D" parent="."]
+position = Vector2(0, -8)
+
+[node name="Thruster" type="Sprite2D" parent="Hover"]
+position = Vector2(0, -24)
+texture = ExtResource("3_thruster")
+
+[node name="AntennaPivot" type="Node2D" parent="Hover"]
+position = Vector2(0, -84)
+
+[node name="Antenna" type="Sprite2D" parent="Hover/AntennaPivot"]
+position = Vector2(0, -12)
+texture = ExtResource("4_antenna")
+
+[node name="Body" type="Sprite2D" parent="Hover"]
+position = Vector2(0, -61)
+texture = ExtResource("5_body")
+
+[node name="Face" type="Sprite2D" parent="Hover"]
+position = Vector2(0, -62)
+texture = ExtResource("6_face")

@@ -1,0 +1,103 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/cat.gd" id="1_script"]
+[ext_resource type="Resource" path="res://data/cat_tuning.tres" id="2_tuning"]
+[ext_resource type="Texture2D" path="res://art/shadow.svg" id="3_shadow"]
+[ext_resource type="Texture2D" path="res://art/cat_tail.svg" id="4_tail"]
+[ext_resource type="Texture2D" path="res://art/cat_paw.svg" id="5_paw"]
+[ext_resource type="Texture2D" path="res://art/cat_body.svg" id="6_body"]
+[ext_resource type="Texture2D" path="res://art/cat_ear.svg" id="7_ear"]
+[ext_resource type="Texture2D" path="res://art/cat_head.svg" id="8_head"]
+[ext_resource type="AudioStream" path="res://audio/sfx/meow.wav" id="9_meow"]
+[ext_resource type="AudioStream" path="res://audio/sfx/boing.wav" id="10_boing"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_cat"]
+radius = 18.0
+
+[node name="Cat" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 1
+motion_mode = 1
+script = ExtResource("1_script")
+tuning = ExtResource("2_tuning")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_cat")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+scale = Vector2(1.2, 1)
+texture = ExtResource("3_shadow")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="TailPivot" type="Node2D" parent="Visual"]
+position = Vector2(-28, -13)
+
+[node name="Tail" type="Sprite2D" parent="Visual/TailPivot"]
+position = Vector2(-10, -22)
+texture = ExtResource("4_tail")
+
+[node name="PawBackL" type="Sprite2D" parent="Visual"]
+position = Vector2(-21, 0)
+texture = ExtResource("5_paw")
+
+[node name="PawBackR" type="Sprite2D" parent="Visual"]
+position = Vector2(-9, 1)
+texture = ExtResource("5_paw")
+
+[node name="Body" type="Sprite2D" parent="Visual"]
+position = Vector2(-2, -20)
+texture = ExtResource("6_body")
+
+[node name="PawFrontL" type="Sprite2D" parent="Visual"]
+position = Vector2(15, 1)
+texture = ExtResource("5_paw")
+
+[node name="PawFrontR" type="Sprite2D" parent="Visual"]
+position = Vector2(27, 0)
+texture = ExtResource("5_paw")
+
+[node name="Head" type="Node2D" parent="Visual"]
+position = Vector2(30, -35)
+
+[node name="EarBack" type="Node2D" parent="Visual/Head"]
+position = Vector2(-14, -22)
+rotation = -0.314159
+
+[node name="Sprite" type="Sprite2D" parent="Visual/Head/EarBack"]
+position = Vector2(0, -13)
+texture = ExtResource("7_ear")
+
+[node name="EarFront" type="Node2D" parent="Visual/Head"]
+position = Vector2(14, -22)
+rotation = 0.314159
+
+[node name="Sprite" type="Sprite2D" parent="Visual/Head/EarFront"]
+position = Vector2(0, -13)
+texture = ExtResource("7_ear")
+
+[node name="HeadSprite" type="Sprite2D" parent="Visual/Head"]
+position = Vector2(0, -14)
+texture = ExtResource("8_head")
+
+[node name="Meow" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("9_meow")
+
+[node name="Boing" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("10_boing")
+
+[node name="SplashFx" type="CPUParticles2D" parent="."]
+position = Vector2(0, -10)
+emitting = false
+amount = 24
+lifetime = 0.7
+one_shot = true
+explosiveness = 0.95
+direction = Vector2(0, -1)
+spread = 70.0
+gravity = Vector2(0, 600)
+initial_velocity_min = 140.0
+initial_velocity_max = 260.0
+scale_amount_min = 3.0
+scale_amount_max = 6.0
+color = Color(0.431, 0.757, 0.894, 1)

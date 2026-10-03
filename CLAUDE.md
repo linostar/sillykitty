@@ -16,9 +16,15 @@ CLAUDE.md
 .claude/plans/main.md      plan + acceptance criteria
 sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720, canvas_items stretch, keep aspect)
   art/                     hand-authored SVG sprite parts
+  audio/sfx/               generated WAV sound effects (tools/sfx.py), committed
+  data/cat_tuning.tres     every cat behaviour number (CatTuning resource)
+  scenes/                  robot, cat, hazards, props; scenes/levels/level_NN.tscn
+  scripts/                 one script per scene type (class_name = file name in PascalCase)
 tools/                     outside the Godot project, never imported or exported
   check_project.gd         restriction + strict-compile gate (run by validate.sh)
-  validate.sh              import + project check + headless run
+  test_gameplay.gd         headless gameplay tests (run by validate.sh)
+  sfx.py                   deterministic stdlib synthesiser for every sound effect
+  validate.sh              import + project check + gameplay tests + headless run
   build_web.sh             validate + web export + smoke test + itch zip
   smoke_web.mjs            Playwright (system Chrome) smoke test of the web export
   package.json, package-lock.json   pinned Playwright dev dependency
@@ -28,12 +34,23 @@ build/                     git-ignored: web export, logs, smoke screenshot, sill
 ## Commands (run from repo root)
 `GODOT` overrides the Godot binary (default `/Applications/Godot.app/Contents/MacOS/Godot`).
 - One-time tool setup: `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix tools ci` (uses installed Google Chrome).
-- Validate (run after every change): `tools/validate.sh`
+- Validate (run after every change): `tools/validate.sh` (each Godot call is killed after `GODOT_TIMEOUT` seconds, default 300)
 - Smoke test an existing export only: `npm --prefix tools run smoke` (or `node tools/smoke_web.mjs [buildDir]`, default `build/web`); screenshot goes to `build/smoke.png`. Env: `SMOKE_BOOT_TIMEOUT_MS`, `SMOKE_SETTLE_MS`.
 - Release build for itch.io: `tools/build_web.sh` → `build/sillykitty.zip` (upload as HTML, "played in the browser", viewport 1280x720, SharedArrayBuffer off).
-- Logs for any failure: `build/logs/{import,check,run,export}.log`.
+- Regenerate sound effects: `python3 tools/sfx.py` (writes `sillykitty/audio/sfx/*.wav`, byte-identical on every run).
+- Run only the gameplay tests: `"$GODOT" --headless --path sillykitty --fixed-fps 60 --script "$PWD/tools/test_gameplay.gd"`.
+- Logs for any failure: `build/logs/{import,check,test,run,export}.log`.
 
-Gotcha: Godot exits 0 even when a `--script` fails to compile. Never trust its exit code for script runs; `validate.sh` requires the explicit `check_project: OK` line.
+Gotchas:
+- Godot exits 0 even when a `--script` fails to compile. Never trust its exit code for script runs; `validate.sh` requires the explicit `check_project: OK` / `test_gameplay: OK` lines and fails on any ERROR/WARNING in their logs.
+- Quitting a script run right after freeing a playing sound reports leaked `AudioStreamPlayback` objects; `test_gameplay.gd` waits in real time before quitting.
+
+## Gameplay architecture
+- Physics layers: 1 = walls, 2 = robot, 3 (bit value 4) = cat. Robot and cat collide only with walls. Hazards are `Area2D` with `collision_layer = 0`, `collision_mask = 4`, so only the cat triggers them (the robot hovers).
+- Cat brain (`scripts/cat.gd`): each physics tick scores idle, chase robot, each available distraction (group `distractions`) and each bed in range (group `goals`); the current choice gets `hysteresis`. Terminal states `FAILED` / `CLEARED` emit `failed(reason)` / `reached_goal`.
+- `Level` (`scripts/level.gd`) listens to the cat, shows the banner and restarts via `reload_current_scene()` (1.6 s after a fail, 2.5 s after a clear). No input is needed to continue.
+- Levels: `RoomFloor` draws the floor; border `Wall`s go under `Room`; furniture `Wall`s, the robot and the cat go under the y-sorted `Actors` node. `Wall` origin is the bottom-centre of its footprint.
+- Positions of the robot, cat and props are their feet; visuals are drawn upward from there.
 
 ## GDScript conventions
 - Godot 4 style guide: tabs, `snake_case` files/functions/variables, `PascalCase` nodes and `class_name`, `UPPER_SNAKE` constants, signals in past tense.
@@ -45,6 +62,7 @@ Gotcha: Godot exits 0 even when a `--script` fails to compile. Never trust its e
 - Style: flat fills, `#3B2C35` ink outline 3px (2.5px on small parts) with round joins, soft highlights, shadows from `shadow.svg`.
 - Cat parts (side view facing right, flip for left): `cat_body`, `cat_head`, `cat_ear` (x2), `cat_tail` (pivot at the tail base, bottom-right), `cat_paw` (x4).
 - Robot parts (front view): `robot_body`, `robot_face`, `robot_antenna` (pivot at the stem base), `robot_thruster`, plus `shadow`.
+- Props: `puddle` (hazard), `cat_bed` (goal), `yarn` (distraction). Walls and floors are drawn in code (`wall.gd`, `room_floor.gd`).
 
 ### Palette
 | Token | Hex | Use |
@@ -61,9 +79,15 @@ Gotcha: Godot exits 0 even when a `--script` fails to compile. Never trust its e
 | accent_red | `#FF6B6B` | antenna tip, alerts |
 | floor | `#F6E7CB` | default floor |
 | floor_line | `#E8D3AE` | floor boards, grid |
+| wall_top | `#C99C74` | wall / furniture footprint |
+| wall_front | `#A77B5A` | wall / furniture front face |
 | water | `#6EC1E4` | puddle hazard |
+| water_light | `#A8DDF2` | puddle ripples |
 | danger | `#E8574A` | hazard highlight |
-| goal | `#B98AE0` | cat bed |
+| goal | `#B98AE0` | cat bed rim, sofa top |
+| goal_light | `#D7B8F0` | cat bed cushion |
+| sofa_front | `#946BB8` | sofa front face |
+| yarn_dark | `#C94848` | yarn strands (ball uses accent_red) |
 | sunbeam | `#FFF2A8` | distraction light |
 | highlight | `#FFFFFF` | eye glints, specular highlights (with opacity) |
 
