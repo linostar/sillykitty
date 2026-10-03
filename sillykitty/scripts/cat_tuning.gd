@@ -36,6 +36,21 @@ extends Resource
 @export var goal_weight: float
 @export var arrive_distance: float
 
+@export_group("Flee")
+## Score of fleeing a threat; beats every other option.
+@export var flee_weight: float
+## Seconds the cat keeps running after it last saw a threat in range.
+@export var flee_linger: float
+@export var hiss_cooldown: float
+## Below this real speed a fleeing cat counts as cornered (see give_up_time).
+@export var flee_stall_speed: float
+
+@export_group("Nap")
+## Seconds of having nothing to do before the cat dozes off (fails the level).
+@export var nap_fill_time: float
+## Seconds for a full nap meter to drain while the cat is busy.
+@export var nap_drain_time: float
+
 @export_group("Brain")
 ## Score of doing nothing; any option must beat it.
 @export var idle_score: float

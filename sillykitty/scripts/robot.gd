@@ -16,8 +16,10 @@ const BOB_SPEED := 3.2
 const MAX_TILT := 0.18
 const FACE_LOOK := Vector2(6.0, 4.0)
 
+## True from the first frame with movement input on.
+var has_moved := false
+
 var _time := 0.0
-var _has_moved := false
 
 @onready var _hover: Node2D = $Hover
 @onready var _shadow: Sprite2D = $Shadow
@@ -29,8 +31,8 @@ var _has_moved := false
 
 func _physics_process(delta: float) -> void:
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	if not _has_moved and input != Vector2.ZERO:
-		_has_moved = true
+	if not has_moved and input != Vector2.ZERO:
+		has_moved = true
 		started_moving.emit()
 	var rate := acceleration if input != Vector2.ZERO else friction
 	velocity = velocity.move_toward(input * max_speed, rate * delta)

@@ -10,6 +10,16 @@
 [ext_resource type="Texture2D" path="res://art/cat_head.svg" id="8_head"]
 [ext_resource type="AudioStream" path="res://audio/sfx/meow.wav" id="9_meow"]
 [ext_resource type="AudioStream" path="res://audio/sfx/boing.wav" id="10_boing"]
+[ext_resource type="AudioStream" path="res://audio/sfx/yawn.wav" id="11_yawn"]
+[ext_resource type="AudioStream" path="res://audio/sfx/hiss.wav" id="12_hiss"]
+[ext_resource type="Script" path="res://scripts/thought_bubble.gd" id="13_bubble"]
+[ext_resource type="Texture2D" path="res://art/bubble.svg" id="14_bubble"]
+[ext_resource type="Texture2D" path="res://art/icon_idle.svg" id="15_idle"]
+[ext_resource type="Texture2D" path="res://art/icon_heart.svg" id="16_heart"]
+[ext_resource type="Texture2D" path="res://art/yarn.svg" id="17_yarn"]
+[ext_resource type="Texture2D" path="res://art/cat_bed.svg" id="18_bed"]
+[ext_resource type="Texture2D" path="res://art/icon_alert.svg" id="19_alert"]
+[ext_resource type="Texture2D" path="res://art/icon_zzz.svg" id="20_zzz"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_cat"]
 radius = 18.0
@@ -20,6 +30,7 @@ collision_mask = 1
 motion_mode = 1
 script = ExtResource("1_script")
 tuning = ExtResource("2_tuning")
+nap_sound = ExtResource("11_yawn")
 
 [node name="Collision" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_cat")
@@ -85,6 +96,26 @@ stream = ExtResource("9_meow")
 
 [node name="Boing" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("10_boing")
+
+[node name="Hiss" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("12_hiss")
+
+[node name="ThoughtBubble" type="Node2D" parent="."]
+z_index = 1
+position = Vector2(14, -112)
+script = ExtResource("13_bubble")
+idle_icon = ExtResource("15_idle")
+chase_icon = ExtResource("16_heart")
+distracted_icon = ExtResource("17_yarn")
+go_to_bed_icon = ExtResource("18_bed")
+flee_icon = ExtResource("19_alert")
+nap_icon = ExtResource("20_zzz")
+
+[node name="Cloud" type="Sprite2D" parent="ThoughtBubble"]
+texture = ExtResource("14_bubble")
+
+[node name="Icon" type="Sprite2D" parent="ThoughtBubble/Cloud"]
+position = Vector2(2, -5)
 
 [node name="SplashFx" type="CPUParticles2D" parent="."]
 position = Vector2(0, -10)

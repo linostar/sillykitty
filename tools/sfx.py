@@ -112,6 +112,60 @@ def timeup():
     return out
 
 
+def hum():
+    """Vacuum motor drone. Every component is a whole number of cycles per
+    second, so the 1-second clip loops seamlessly."""
+    n = RATE
+    out = []
+    for i in range(n):
+        t = i / RATE
+        wobble = 1.0 + 0.25 * math.sin(2 * math.pi * 4 * t)
+        tone = (math.sin(2 * math.pi * 110 * t) + 0.6 * math.sin(2 * math.pi * 220 * t)
+                + 0.35 * math.sin(2 * math.pi * 330 * t) + 0.2 * math.sin(2 * math.pi * 1210 * t))
+        buzz = 0.25 if (165 * t) % 1.0 < 0.5 else -0.25
+        out.append((tone + buzz) * wobble)
+    return out
+
+
+def bark(rng):
+    """Two quick "woof"s: a falling growly tone with a noisy attack."""
+    out = []
+    for dur, start, end in ((0.16, 520.0, 300.0), (0.22, 480.0, 250.0)):
+        n = int(dur * RATE)
+        phase, raw = 0.0, []
+        for i in range(n):
+            phase = (phase + (start + (end - start) * i / n) / RATE) % 1.0
+            raw.append(2.0 * phase - 1.0 + rng.uniform(-0.6, 0.6) * math.exp(-12.0 * i / n))
+        cutoff = [2200 - 1500 * i / n for i in range(n)]
+        env = envelope(n, 0.01, dur * 0.6)
+        out += [s * e for s, e in zip(lowpass(raw, cutoff), env)]
+        out += [0.0] * int(0.07 * RATE)
+    return out
+
+
+def yawn():
+    """Long sleepy "mraaawh": a slow rising-then-sagging vowel glide."""
+    n = int(1.1 * RATE)
+    pitch = lerp_curve([(0, 320), (0.35, 470), (1, 210)], n)
+    cutoff = lerp_curve([(0, 400), (0.4, 1600), (1, 350)], n)
+    phase, raw = 0.0, []
+    for i in range(n):
+        phase = (phase + pitch[i] / RATE) % 1.0
+        raw.append(2.0 * phase - 1.0)
+    env = envelope(n, 0.15, 0.45)
+    return [s * e for s, e in zip(lowpass(raw, cutoff), env)]
+
+
+def hiss(rng):
+    """Angry cat hiss: bright noise with a sharp attack and a slow fade."""
+    n = int(0.5 * RATE)
+    noise = [rng.uniform(-1.0, 1.0) for _ in range(n)]
+    smooth = lowpass(noise, [5000] * n)
+    bright = [x - s for x, s in zip(noise, lowpass(noise, [1500] * n))]
+    env = envelope(n, 0.02, 0.3)
+    return [(b + 0.3 * s) * e for b, s, e in zip(bright, smooth, env)]
+
+
 def write(path, samples):
     peak = max(abs(s) for s in samples) or 1.0
     frames = b"".join(struct.pack("<h", int(s / peak * PEAK * 32767)) for s in samples)
@@ -127,7 +181,8 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     rng = random.Random(1002)
     sounds = {"meow": meow(), "splash": splash(rng), "clear": clear(), "boing": boing(),
-              "tick": tick(), "timeup": timeup()}
+              "tick": tick(), "timeup": timeup(), "hum": hum(), "bark": bark(rng), "yawn": yawn(),
+              "hiss": hiss(rng)}
     for name, samples in sounds.items():
         path = out_dir / f"{name}.wav"
         write(path, samples)

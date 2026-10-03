@@ -1,0 +1,100 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/dog.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/hazard.gd" id="2_hazard"]
+[ext_resource type="AudioStream" path="res://audio/sfx/bark.wav" id="3_bark"]
+[ext_resource type="Texture2D" path="res://art/shadow.svg" id="4_shadow"]
+[ext_resource type="Texture2D" path="res://art/dog_tail.svg" id="5_tail"]
+[ext_resource type="Texture2D" path="res://art/dog_paw.svg" id="6_paw"]
+[ext_resource type="Texture2D" path="res://art/dog_body.svg" id="7_body"]
+[ext_resource type="Texture2D" path="res://art/dog_head.svg" id="8_head"]
+[ext_resource type="Texture2D" path="res://art/dog_ear.svg" id="9_ear"]
+[ext_resource type="Texture2D" path="res://art/dog_eyelid.svg" id="10_eyelid"]
+[ext_resource type="Texture2D" path="res://art/icon_zzz.svg" id="11_zzz"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_dog"]
+radius = 22.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_bite"]
+radius = 30.0
+
+[node name="Dog" type="CharacterBody2D"]
+collision_layer = 0
+collision_mask = 1
+motion_mode = 1
+script = ExtResource("1_script")
+
+[node name="Collision" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_dog")
+
+[node name="Bite" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 4
+monitorable = false
+script = ExtResource("2_hazard")
+reason = "Woof! The dog caught kitty."
+sound = ExtResource("3_bark")
+fear_radius = 210.0
+splashes = false
+
+[node name="Shape" type="CollisionShape2D" parent="Bite"]
+shape = SubResource("CircleShape2D_bite")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+scale = Vector2(1.6, 1.2)
+texture = ExtResource("4_shadow")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="TailPivot" type="Node2D" parent="Visual"]
+position = Vector2(-36, -24)
+
+[node name="Tail" type="Sprite2D" parent="Visual/TailPivot"]
+position = Vector2(-11, -16)
+texture = ExtResource("5_tail")
+
+[node name="PawBackL" type="Sprite2D" parent="Visual"]
+position = Vector2(-28, 0)
+texture = ExtResource("6_paw")
+
+[node name="PawBackR" type="Sprite2D" parent="Visual"]
+position = Vector2(-13, 1)
+texture = ExtResource("6_paw")
+
+[node name="Body" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -24)
+texture = ExtResource("7_body")
+
+[node name="PawFrontL" type="Sprite2D" parent="Visual"]
+position = Vector2(18, 1)
+texture = ExtResource("6_paw")
+
+[node name="PawFrontR" type="Sprite2D" parent="Visual"]
+position = Vector2(33, 0)
+texture = ExtResource("6_paw")
+
+[node name="Head" type="Node2D" parent="Visual"]
+position = Vector2(38, -48)
+
+[node name="HeadSprite" type="Sprite2D" parent="Visual/Head"]
+position = Vector2(6, -4)
+texture = ExtResource("8_head")
+
+[node name="Eyelid" type="Sprite2D" parent="Visual/Head"]
+position = Vector2(10, -9)
+texture = ExtResource("10_eyelid")
+
+[node name="EarPivot" type="Node2D" parent="Visual/Head"]
+position = Vector2(-6, -26)
+
+[node name="Ear" type="Sprite2D" parent="Visual/Head/EarPivot"]
+position = Vector2(-2, 16)
+texture = ExtResource("9_ear")
+
+[node name="Snore" type="Sprite2D" parent="."]
+position = Vector2(40, -70)
+scale = Vector2(0.7, 0.7)
+texture = ExtResource("11_zzz")
+
+[node name="Bark" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_bark")

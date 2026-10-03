@@ -18,7 +18,7 @@ sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720
   art/                     hand-authored SVG sprite parts
   audio/sfx/               generated WAV sound effects (tools/sfx.py), committed
   data/cat_tuning.tres     every cat behaviour number (CatTuning resource)
-  scenes/                  boot (main scene), hud, robot, cat, hazards, props; scenes/levels/level_NN.tscn
+  scenes/                  boot (main scene), hud, robot, cat, hazards (puddle, vacuum, dog), props; scenes/levels/level_NN.tscn
   scripts/                 one script per scene type (class_name = file name in PascalCase)
 tools/                     outside the Godot project, never imported or exported
   check_project.gd         restriction + strict-compile gate (run by validate.sh)
@@ -38,6 +38,7 @@ build/                     git-ignored: web export, logs, smoke screenshot, sill
 - Smoke test an existing export only: `npm --prefix tools run smoke` (or `node tools/smoke_web.mjs [buildDir]`, default `build/web`); screenshot goes to `build/smoke.png`. Env: `SMOKE_BOOT_TIMEOUT_MS`, `SMOKE_SETTLE_MS`.
 - Release build for itch.io: `tools/build_web.sh` → `build/sillykitty.zip` (upload as HTML, "played in the browser", viewport 1280x720, SharedArrayBuffer off).
 - Regenerate sound effects: `python3 tools/sfx.py` (writes `sillykitty/audio/sfx/*.wav`, byte-identical on every run).
+  `hum.wav` (vacuum) loops through `edit/loop_mode=2` in `hum.wav.import`; keep that line if the import file is ever recreated.
 - Run only the gameplay tests: `"$GODOT" --headless --path sillykitty --fixed-fps 60 --script "$PWD/tools/test_gameplay.gd"`.
 - Logs for any failure: `build/logs/{import,check,test,run,export}.log`.
 
@@ -46,9 +47,12 @@ Gotchas:
 - Quitting a script run right after freeing a playing sound reports leaked `AudioStreamPlayback` objects; `test_gameplay.gd` waits in real time before quitting.
 
 ## Gameplay architecture
-- Physics layers: 1 = walls, 2 = robot, 3 (bit value 4) = cat. Robot and cat collide only with walls. Hazards are `Area2D` with `collision_layer = 0`, `collision_mask = 4`, so only the cat triggers them (the robot hovers).
-- Cat brain (`scripts/cat.gd`): each physics tick scores idle, chase robot, each available distraction (group `distractions`) and each bed in range (group `goals`); the current choice gets `hysteresis`. Distractions and beds count only in line of sight (raycast against layer 1), and a distraction or bed the cat cannot get closer to for `give_up_time` is ignored for `give_up_cooldown`. The player has no restart button, so no cat state may be able to last forever. Terminal states `FAILED` / `CLEARED` emit `failed(reason, sound)` / `reached_goal`.
-- Each `Hazard` exports its fail `reason` text and `sound`; the level plays that sound.
+- Physics layers: 1 = walls, 2 = robot, 3 (bit value 4) = cat. Robot, cat and dog collide only with walls (the dog has no layer of its own). Hazards are `Area2D` with `collision_layer = 0`, `collision_mask = 4`, so only the cat triggers them (the robot hovers).
+- Cat brain (`scripts/cat.gd`): each physics tick scores idle, chase robot, each available distraction (group `distractions`), each bed in range (group `goals`) and fleeing (while a scary threat was seen within the last `flee_linger` s); the current choice gets `hysteresis`. Distractions, beds and threats count only in line of sight (raycast against layer 1), and a distraction or bed the cat cannot get closer to for `give_up_time` is ignored for `give_up_cooldown`. A threat in range also ends play with a distraction. A fleeing cat runs along walls instead of into them, and one that stays below `flee_stall_speed` for `give_up_time` (cornered) ignores the threats it sees for `give_up_cooldown`. Level design: keep vacuum loops a little away from walls they drive at. The player has no restart button, so no cat or dog state may be able to last forever. Terminal states `NAP` / `FAILED` / `CLEARED` (`is_over()`) emit `failed(reason, sound)` / `reached_goal`.
+- Nap meter (`Cat.nap`, 0..1): fills over `nap_fill_time` while the cat is `IDLE` and the robot has moved at least once (`Robot.has_moved`), drains over `nap_drain_time` otherwise; full = `NAP` fail with the yawn.
+- `ThoughtBubble` (child of the cat) shows one icon per non-terminal state plus `NAP`, and the nap meter above it; it hides on `FAILED` / `CLEARED`.
+- Each `Hazard` exports its fail `reason` text, `sound`, `splashes` (wet or dizzy fail animation) and `fear_radius`; a hazard with `fear_radius > 0` joins group `threats` and is fled while its `scary` flag is on. The level plays the hazard's sound.
+- `Vacuum` (extends `Hazard`) drives its `waypoints` loop (parent coordinates) at `speed` forever, humming. `Dog` (`CharacterBody2D`, export `cat`) sleeps until it sees the cat (line of sight) within `wake_radius`, which is far wider than its bite so the cat always wakes it before touching it, then barks and chases for `chase_time`, then returns home and sleeps, or lies down where it is after `return_time`; its child `Bite` hazard is scary only while awake. Set a level's `Dog.cat` like `Cat.robot`.
 - `Game` autoload (`scripts/game.gd`, class `GameState`) owns `LEVEL_PATHS` (add every new level there), linear progression (clear -> next level, fail -> retry after 1.6 s, clear of the last level -> end banner -> level 1) and the save `user://progress.json` (furthest level, best stars). It logs every load, save and transition with a `[Game]` prefix; a corrupt save is reported once and replaced.
 - Reach the autoload with `get_node(GameState.AUTOLOAD_PATH) as GameState`, never the global name `Game`: test scripts compile before autoloads exist, so any script naming `Game` breaks every test.
 - `Level` (`scripts/level.gd`) exports `time_limit` and `hint`, runs the countdown (starts on the robot's `started_moving`, red and ticking for the last 10 s, time-up = fail), awards 1-3 stars from the time left and only reports `finished(cleared, stars)`; `Game` decides what loads next. No input is ever needed to continue.
@@ -66,6 +70,9 @@ Gotchas:
 - Style: flat fills, `#3B2C35` ink outline 3px (2.5px on small parts) with round joins, soft highlights, shadows from `shadow.svg`.
 - Cat parts (side view facing right, flip for left): `cat_body`, `cat_head`, `cat_ear` (x2), `cat_tail` (pivot at the tail base, bottom-right), `cat_paw` (x4).
 - Robot parts (front view): `robot_body`, `robot_face`, `robot_antenna` (pivot at the stem base), `robot_thruster`, plus `shadow`.
+- Vacuum parts (3/4 view): `vacuum_body`, `vacuum_brush` (x2, spun under a 0.45 y-squash for perspective), `vacuum_light`.
+- Dog parts (side view facing right): `dog_body`, `dog_head`, `dog_eyelid` (shown while asleep), `dog_ear` (pivot at the top), `dog_tail` (pivot at the base, bottom-right), `dog_paw` (x4).
+- Thought bubble: `bubble`, icons `icon_idle`, `icon_heart` (chase), `icon_alert` (flee), `icon_zzz` (nap, also the dog's snore); distracted and go-to-bed reuse `yarn` and `cat_bed`.
 - Props: `puddle` (hazard), `cat_bed` (goal), `yarn` (distraction); HUD: `star`. Walls and floors are drawn in code (`wall.gd`, `room_floor.gd`).
 
 ### Palette
@@ -94,7 +101,14 @@ Gotchas:
 | sofa_front | `#6E9E69` | sofa front face |
 | yarn_dark | `#C94848` | yarn strands (ball uses accent_red) |
 | sunbeam | `#FFF2A8` | distraction light |
-| star | `#FFC94D` | star rating |
+| star | `#FFC94D` | star rating, vacuum brush bristles |
+| vacuum_shell | `#D5DCE3` | vacuum lid |
+| vacuum_shade | `#B4BEC8` | vacuum lid shading |
+| vacuum_trim | `#56606B` | vacuum side, button, brush hub |
+| dog_fur | `#C4A27F` | dog fur |
+| dog_patch | `#8A6446` | dog ear, back patch, brow |
+| dog_belly | `#F1E2CC` | dog muzzle, belly, paw tips |
+| nap | `#8A8FE0` | nap meter, Zzz icon |
 | highlight | `#FFFFFF` | eye glints, specular highlights (with opacity) |
 
 ## Git

@@ -10,6 +10,8 @@ const CAT_SCENE := preload("res://scenes/cat.tscn")
 const YARN_SCENE := preload("res://scenes/yarn.tscn")
 const PUDDLE_SCENE := preload("res://scenes/puddle.tscn")
 const BED_SCENE := preload("res://scenes/bed.tscn")
+const VACUUM_SCENE := preload("res://scenes/vacuum.tscn")
+const DOG_SCENE := preload("res://scenes/dog.tscn")
 const LEVEL_PATH := "res://scenes/levels/level_01.tscn"
 const FPS := 60
 const AUDIO_RELEASE_MSEC := 500
@@ -60,6 +62,18 @@ func _run() -> void:
 	await _test_cat_ignores_target_behind_wall()
 	await _test_cat_gives_up_unreachable_target()
 	await _test_cat_walks_into_nearby_bed()
+	_test_thought_bubble_icons()
+	await _test_vacuum_patrols_waypoints()
+	await _test_cat_flees_vacuum()
+	await _test_threat_interrupts_play()
+	await _test_threat_behind_wall_is_ignored()
+	await _test_cat_slides_along_wall_when_fleeing()
+	await _test_cornered_cat_gives_up_fleeing()
+	await _test_threat_touch_fails_level()
+	await _test_dog_sleeps_wakes_chases_and_sleeps_again()
+	await _test_dog_cut_off_from_home_still_sleeps()
+	await _test_nap_waits_for_first_movement_then_fails()
+	await _test_nap_drains_while_busy()
 	_test_stars_for_time_left()
 	_test_next_index()
 	_test_save_round_trip()
@@ -220,6 +234,223 @@ func _test_cat_gives_up_unreachable_target() -> void:
 	await _dispose(arena)
 
 
+func _test_thought_bubble_icons() -> void:
+	var bubble := (CAT_SCENE.instantiate() as Cat).get_node("ThoughtBubble") as ThoughtBubble
+	var shown: Array[Cat.State] = [Cat.State.IDLE, Cat.State.CHASE_ROBOT, Cat.State.DISTRACTED, Cat.State.GO_TO_BED,
+		Cat.State.FLEE, Cat.State.NAP]
+	var icons: Array[Texture2D] = []
+	for state in shown:
+		var icon := bubble.icon_for(state)
+		if icon != null and not icons.has(icon):
+			icons.append(icon)
+	var hidden := bubble.icon_for(Cat.State.FAILED) == null and bubble.icon_for(Cat.State.CLEARED) == null
+	_check(icons.size() == shown.size() and hidden, "thought_bubble_icons",
+		"distinct icons=%d of %d, hidden on fail/clear=%s" % [icons.size(), shown.size(), hidden])
+	bubble.get_parent().free()
+
+
+func _test_vacuum_patrols_waypoints() -> void:
+	# The idle cat is far away; the robot hovers on the patrol line.
+	var arena := _arena(Vector2(300, 200), Vector2(2000, 2000))
+	var cat := arena.get_node("Cat") as Cat
+	var bot := arena.get_node("Robot") as Robot
+	var waypoints := PackedVector2Array([Vector2(400, 200), Vector2(400, 400), Vector2(200, 200)])
+	var vacuum := _add_vacuum(arena, Vector2(200, 200), waypoints)
+	var closest: Array[float] = [INF, INF, INF]
+	var robot_detected := false
+	var lap := (200.0 + 200.0 + Vector2(200, 200).length()) / vacuum.speed
+	for i in int((lap + 0.5) * FPS):
+		await physics_frame
+		for w in waypoints.size():
+			closest[w] = minf(closest[w], vacuum.position.distance_to(waypoints[w]))
+		robot_detected = robot_detected or vacuum.overlaps_body(bot)
+	var visited := closest.all(func(d: float) -> bool: return d < 1.0)
+	var moving_on := vacuum.position.distance_to(Vector2(200, 200)) > 10.0
+	_check(visited and moving_on and not robot_detected and not cat.is_over(), "vacuum_patrols_waypoints",
+		"closest=%s moving_on=%s robot_detected=%s cat=%s" % [closest, moving_on, robot_detected, Cat.State.keys()[cat.state]])
+	await _dispose(arena)
+
+
+func _test_cat_flees_vacuum() -> void:
+	var arena := _arena(Vector2(300, 300), Vector2(260, 300))
+	var cat := arena.get_node("Cat") as Cat
+	await _frames(10)
+	var was_chasing := cat.state == Cat.State.CHASE_ROBOT
+	var vacuum := _add_vacuum(arena, Vector2(140, 300), PackedVector2Array([Vector2(1000, 300)]))
+	await _frames(5)
+	var fled := cat.state == Cat.State.FLEE
+	var bubble := cat.get_node("ThoughtBubble") as ThoughtBubble
+	var flee_icon := bubble.shown_icon() == bubble.flee_icon
+	var start_gap := cat.position.distance_to(vacuum.position)
+	await _frames(30)
+	var gap_grew := cat.position.distance_to(vacuum.position) > start_gap
+	_check(was_chasing and fled and flee_icon and gap_grew and not cat.is_over(), "cat_flees_vacuum",
+		"was_chasing=%s fled=%s flee_icon=%s gap_grew=%s state=%s" % [was_chasing, fled, flee_icon, gap_grew,
+		Cat.State.keys()[cat.state]])
+	await _dispose(arena)
+
+
+func _test_threat_interrupts_play() -> void:
+	var arena := _arena(Vector2(300, 300), Vector2(250, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var yarn := _add(arena, YARN_SCENE, Vector2(250, 360)) as Distraction
+	await _frames(60)
+	var playing := cat.state == Cat.State.DISTRACTED and cat.position.distance_to(yarn.position) <= cat.tuning.engage_distance
+	_add_vacuum(arena, Vector2(250, 480), PackedVector2Array([Vector2(250, 100)]))
+	await _frames(3)
+	_check(playing and cat.state == Cat.State.FLEE and not yarn.is_available(), "threat_interrupts_play",
+		"playing=%s state=%s yarn_available=%s" % [playing, Cat.State.keys()[cat.state], yarn.is_available()])
+	await _dispose(arena)
+
+
+func _test_threat_behind_wall_is_ignored() -> void:
+	# A wall hides the vacuum from the cat and the cat from the sleeping dog.
+	var arena := _arena(Vector2(300, 200), Vector2(250, 250))
+	var cat := arena.get_node("Cat") as Cat
+	_add_wall(arena, Vector2(400, 310), Vector2(1000, 20))
+	_add_vacuum(arena, Vector2(250, 380), PackedVector2Array([Vector2(250, 380)]))
+	var dog := _add_dog(arena, Vector2(320, 380), cat)
+	var calm := true
+	for i in FPS:
+		await physics_frame
+		calm = calm and cat.state != Cat.State.FLEE and dog.state == Dog.State.SLEEP
+	_check(calm and not cat.is_over(), "threat_behind_wall_is_ignored",
+		"calm=%s cat=%s dog=%s" % [calm, Cat.State.keys()[cat.state], Dog.State.keys()[dog.state]])
+	await _dispose(arena)
+
+
+func _test_cat_slides_along_wall_when_fleeing() -> void:
+	# The vacuum drives straight at the cat, which has a wall right behind it.
+	var arena := _arena(Vector2(2000, 300), Vector2(150, 300))
+	var cat := arena.get_node("Cat") as Cat
+	_add_wall(arena, Vector2(110, 700), Vector2(20, 700))
+	_add_vacuum(arena, Vector2(320, 300), PackedVector2Array([Vector2(175, 300)]))
+	await _frames(4 * FPS)
+	_check(not cat.is_over() and absf(cat.position.y - 300.0) > 100.0, "cat_slides_along_wall_when_fleeing",
+		"cat=%s position=%s" % [Cat.State.keys()[cat.state], cat.position])
+	await _dispose(arena)
+
+
+func _test_cornered_cat_gives_up_fleeing() -> void:
+	# A dead-end alcove 44 px wide; the vacuum parked at its mouth scares the cat deeper in.
+	var arena := _arena(Vector2(2000, 2000), Vector2(322, 240))
+	var cat := arena.get_node("Cat") as Cat
+	_add_wall(arena, Vector2(322, 200), Vector2(124, 20))
+	_add_wall(arena, Vector2(290, 340), Vector2(20, 140))
+	_add_wall(arena, Vector2(354, 340), Vector2(20, 140))
+	_add_vacuum(arena, Vector2(322, 360), PackedVector2Array([Vector2(322, 360)]))
+	await _frames(FPS)
+	var cornered := cat.state == Cat.State.FLEE
+	var gave_up := false
+	for i in int((cat.tuning.give_up_time + 1.0) * FPS):
+		await physics_frame
+		gave_up = gave_up or (cat.state != Cat.State.FLEE and not cat.is_over())
+	_check(cornered and gave_up, "cornered_cat_gives_up_fleeing",
+		"cornered=%s gave_up=%s cat=%s position=%s" % [cornered, gave_up, Cat.State.keys()[cat.state], cat.position])
+	await _dispose(arena)
+
+
+func _test_threat_touch_fails_level() -> void:
+	var expected_sounds: Dictionary[String, String] = {"vacuum": "res://audio/sfx/hiss.wav", "dog": "res://audio/sfx/bark.wav"}
+	for kind: String in expected_sounds:
+		var arena := _arena(Vector2(2000, 300), Vector2(300, 300))
+		var cat := arena.get_node("Cat") as Cat
+		var reasons: Array[String] = []
+		var sounds: Array[String] = []
+		cat.failed.connect(func(reason: String, sound: AudioStream) -> void:
+			reasons.append(reason)
+			sounds.append(sound.resource_path if sound != null else "<none>"))
+		var hazard: Hazard
+		if kind == "vacuum":
+			hazard = _add_vacuum(arena, Vector2(300, 300), PackedVector2Array([Vector2(300, 300)]))
+		else:
+			hazard = _add_dog(arena, Vector2(300, 300), cat).get_node("Bite") as Hazard
+		await _frames(5)
+		_check(cat.state == Cat.State.FAILED and reasons == [hazard.reason] and sounds == [expected_sounds[kind]],
+			"%s_touch_fails_level" % kind, "state=%s reasons=%s sounds=%s" % [Cat.State.keys()[cat.state], reasons, sounds])
+		await _dispose(arena)
+
+
+func _test_dog_sleeps_wakes_chases_and_sleeps_again() -> void:
+	# The cat starts between the dog's wake radius (170) and fear radius (210).
+	var arena := _arena(Vector2(400, 2000), Vector2(410, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var dog := _add_dog(arena, Vector2(600, 300), cat)
+	var bite := dog.get_node("Bite") as Hazard
+	var calm := true
+	for i in 2 * FPS:
+		await physics_frame
+		calm = calm and dog.state == Dog.State.SLEEP and not bite.scary and cat.state != Cat.State.FLEE
+	cat.position = Vector2(480, 300)
+	await _frames(3)
+	var woke := dog.state == Dog.State.CHASE and bite.scary and cat.state == Cat.State.FLEE
+	await _frames(FPS)
+	var chased := dog.position.distance_to(Vector2(600, 300)) > dog.chase_speed * 0.5
+	await _frames(int((dog.chase_time + dog.return_time - 0.5) * FPS))
+	var asleep_again := dog.state == Dog.State.SLEEP and not bite.scary \
+		and dog.position.distance_to(Vector2(600, 300)) <= Dog.HOME_DISTANCE + 1.0
+	_check(calm and woke and chased and asleep_again and not cat.is_over(), "dog_sleeps_wakes_chases_and_sleeps_again",
+		"calm=%s woke=%s chased=%s asleep_again=%s dog=%s cat=%s" % [calm, woke, chased, asleep_again,
+		Dog.State.keys()[dog.state], Cat.State.keys()[cat.state]])
+	await _dispose(arena)
+
+
+func _test_dog_cut_off_from_home_still_sleeps() -> void:
+	# Woken, the dog is moved behind a long wall it cannot get round on its way home.
+	var arena := _arena(Vector2(400, 2000), Vector2(500, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var dog := _add_dog(arena, Vector2(600, 300), cat)
+	_add_wall(arena, Vector2(600, 260), Vector2(1400, 20))
+	await _frames(3)
+	var woke := dog.state == Dog.State.CHASE
+	dog.position = Vector2(600, 150)
+	cat.position = Vector2(100, 60)
+	await _frames(int((dog.chase_time + dog.return_time + 0.5) * FPS))
+	var away := dog.position.distance_to(Vector2(600, 300))
+	_check(woke and dog.state == Dog.State.SLEEP and away > 50.0, "dog_cut_off_from_home_still_sleeps",
+		"woke=%s dog=%s distance_from_home=%.1f" % [woke, Dog.State.keys()[dog.state], away])
+	await _dispose(arena)
+
+
+func _test_nap_waits_for_first_movement_then_fails() -> void:
+	var arena := _arena(Vector2(900, 300), Vector2(100, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var failures: Array[String] = []
+	var sounds: Array[AudioStream] = []
+	cat.failed.connect(func(reason: String, sound: AudioStream) -> void:
+		failures.append(reason)
+		sounds.append(sound))
+	await _frames(int((cat.tuning.nap_fill_time + 1.0) * FPS))
+	var waited := cat.state == Cat.State.IDLE and cat.nap == 0.0
+	Input.action_press("move_right")
+	await _frames(1)
+	Input.action_release("move_right")
+	await _frames(int(cat.tuning.nap_fill_time * FPS) - 30)
+	var not_yet := cat.state == Cat.State.IDLE and cat.nap > 0.8
+	await _frames(60)
+	var bubble := cat.get_node("ThoughtBubble") as ThoughtBubble
+	var napped := cat.state == Cat.State.NAP and failures == [Cat.NAP_TEXT] and sounds == [cat.nap_sound] \
+		and cat.nap_sound != null and bubble.shown_icon() == bubble.nap_icon
+	_check(waited and not_yet and napped, "nap_waits_for_first_movement_then_fails",
+		"waited=%s not_yet=%s napped=%s state=%s nap=%.2f failures=%s" % [waited, not_yet, napped,
+		Cat.State.keys()[cat.state], cat.nap, failures])
+	await _dispose(arena)
+
+
+func _test_nap_drains_while_busy() -> void:
+	# The player has moved and the robot is out of reach, but the yarn keeps the cat busy.
+	var arena := _arena(Vector2(1000, 300), Vector2(250, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var bot := arena.get_node("Robot") as Robot
+	bot.has_moved = true
+	_add(arena, YARN_SCENE, Vector2(250, 360))
+	cat.nap = 0.9
+	await _frames(30)
+	_check(cat.state == Cat.State.DISTRACTED and cat.nap < 0.9 - 0.4 / cat.tuning.nap_drain_time, "nap_drains_while_busy",
+		"state=%s nap=%.2f" % [Cat.State.keys()[cat.state], cat.nap])
+	await _dispose(arena)
+
+
 func _test_stars_for_time_left() -> void:
 	var stars: Array[int] = [Level.stars_for(30.0, 60.0), Level.stars_for(29.0, 60.0), Level.stars_for(15.0, 60.0),
 		Level.stars_for(14.0, 60.0), Level.stars_for(0.0, 60.0)]
@@ -302,10 +533,12 @@ func _test_time_up_fails_level() -> void:
 	await _frames(int(2.0 * FPS) + 5)
 	var frozen_at := level.time_left
 	await _frames(20)
+	var sfx_fail := level.get_node("%SfxFail") as AudioStreamPlayer
 	var ok := cat.state == Cat.State.FAILED and hud.banner_text() == Level.TIME_UP_TEXT \
-		and hud.timer_color() == Hud.WARNING_COLOR and not level.clock_running and level.time_left == frozen_at
-	_check(ok, "time_up_fails_level", "cat=%s banner='%s' red=%s running=%s" % [Cat.State.keys()[cat.state],
-		hud.banner_text(), hud.timer_color() == Hud.WARNING_COLOR, level.clock_running])
+		and hud.timer_color() == Hud.WARNING_COLOR and not level.clock_running and level.time_left == frozen_at \
+		and hud.time_up_sound != null and sfx_fail.stream == hud.time_up_sound
+	_check(ok, "time_up_fails_level", "cat=%s banner='%s' red=%s running=%s sound=%s" % [Cat.State.keys()[cat.state],
+		hud.banner_text(), hud.timer_color() == Hud.WARNING_COLOR, level.clock_running, sfx_fail.stream])
 	await _frames(int(_game.FAIL_RETRY_DELAY * FPS))
 	await _unload_level()
 
@@ -387,6 +620,22 @@ func _add_wall(arena: Node2D, bottom_centre: Vector2, size: Vector2) -> void:
 	wall.size = size
 	wall.position = bottom_centre
 	arena.add_child(wall)
+
+
+func _add_vacuum(arena: Node2D, at: Vector2, waypoints: PackedVector2Array) -> Vacuum:
+	var vacuum := VACUUM_SCENE.instantiate() as Vacuum
+	vacuum.position = at
+	vacuum.waypoints = waypoints
+	arena.add_child(vacuum)
+	return vacuum
+
+
+func _add_dog(arena: Node2D, at: Vector2, cat: Cat) -> Dog:
+	var dog := DOG_SCENE.instantiate() as Dog
+	dog.position = at
+	dog.cat = cat
+	arena.add_child(dog)
+	return dog
 
 
 func _arena(robot_position: Vector2, cat_position: Vector2) -> Node2D:
