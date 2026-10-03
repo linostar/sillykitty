@@ -31,7 +31,7 @@ const SOURCE_EXTENSIONS: Array[String] = ["gd", "tscn", "tres"]
 var _violations: Array[String] = []
 
 
-func _init() -> void:
+func _initialize() -> void:
 	_check_actions()
 	var files: Array[String] = []
 	_collect_files("res://", files)

@@ -18,7 +18,7 @@ sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720
   art/                     hand-authored SVG sprite parts
   audio/sfx/               generated WAV sound effects (tools/sfx.py), committed
   data/cat_tuning.tres     every cat behaviour number (CatTuning resource)
-  scenes/                  robot, cat, hazards, props; scenes/levels/level_NN.tscn
+  scenes/                  boot (main scene), hud, robot, cat, hazards, props; scenes/levels/level_NN.tscn
   scripts/                 one script per scene type (class_name = file name in PascalCase)
 tools/                     outside the Godot project, never imported or exported
   check_project.gd         restriction + strict-compile gate (run by validate.sh)
@@ -49,7 +49,10 @@ Gotchas:
 - Physics layers: 1 = walls, 2 = robot, 3 (bit value 4) = cat. Robot and cat collide only with walls. Hazards are `Area2D` with `collision_layer = 0`, `collision_mask = 4`, so only the cat triggers them (the robot hovers).
 - Cat brain (`scripts/cat.gd`): each physics tick scores idle, chase robot, each available distraction (group `distractions`) and each bed in range (group `goals`); the current choice gets `hysteresis`. Distractions and beds count only in line of sight (raycast against layer 1), and a distraction or bed the cat cannot get closer to for `give_up_time` is ignored for `give_up_cooldown`. The player has no restart button, so no cat state may be able to last forever. Terminal states `FAILED` / `CLEARED` emit `failed(reason, sound)` / `reached_goal`.
 - Each `Hazard` exports its fail `reason` text and `sound`; the level plays that sound.
-- `Level` (`scripts/level.gd`) listens to the cat, shows the banner and restarts via `reload_current_scene()` (1.6 s after a fail, 2.5 s after a clear). No input is needed to continue.
+- `Game` autoload (`scripts/game.gd`, class `GameState`) owns `LEVEL_PATHS` (add every new level there), linear progression (clear -> next level, fail -> retry after 1.6 s, clear of the last level -> end banner -> level 1) and the save `user://progress.json` (furthest level, best stars). It logs every load, save and transition with a `[Game]` prefix; a corrupt save is reported once and replaced.
+- Reach the autoload with `get_node(GameState.AUTOLOAD_PATH) as GameState`, never the global name `Game`: test scripts compile before autoloads exist, so any script naming `Game` breaks every test.
+- `Level` (`scripts/level.gd`) exports `time_limit` and `hint`, runs the countdown (starts on the robot's `started_moving`, red and ticking for the last 10 s, time-up = fail), awards 1-3 stars from the time left and only reports `finished(cleared, stars)`; `Game` decides what loads next. No input is ever needed to continue.
+- Every level instances `scenes/hud.tscn` (unique name `%Hud`) and marks its robot and cat with unique names `%Robot` and `%Cat`.
 - Levels: `RoomFloor` draws the floor; border `Wall`s go under `Room`; furniture `Wall`s, the robot and the cat go under the y-sorted `Actors` node. `Wall` origin is the bottom-centre of its footprint. `Wall` and `RoomFloor` are `@tool` scripts, so levels can be laid out visually in the editor.
 - Positions of the robot, cat and props are their feet; visuals are drawn upward from there.
 
@@ -63,7 +66,7 @@ Gotchas:
 - Style: flat fills, `#3B2C35` ink outline 3px (2.5px on small parts) with round joins, soft highlights, shadows from `shadow.svg`.
 - Cat parts (side view facing right, flip for left): `cat_body`, `cat_head`, `cat_ear` (x2), `cat_tail` (pivot at the tail base, bottom-right), `cat_paw` (x4).
 - Robot parts (front view): `robot_body`, `robot_face`, `robot_antenna` (pivot at the stem base), `robot_thruster`, plus `shadow`.
-- Props: `puddle` (hazard), `cat_bed` (goal), `yarn` (distraction). Walls and floors are drawn in code (`wall.gd`, `room_floor.gd`).
+- Props: `puddle` (hazard), `cat_bed` (goal), `yarn` (distraction); HUD: `star`. Walls and floors are drawn in code (`wall.gd`, `room_floor.gd`).
 
 ### Palette
 | Token | Hex | Use |
@@ -91,6 +94,7 @@ Gotchas:
 | sofa_front | `#6E9E69` | sofa front face |
 | yarn_dark | `#C94848` | yarn strands (ball uses accent_red) |
 | sunbeam | `#FFF2A8` | distraction light |
+| star | `#FFC94D` | star rating |
 | highlight | `#FFFFFF` | eye glints, specular highlights (with opacity) |
 
 ## Git

@@ -18,6 +18,7 @@ const GOAL_GROUP := &"goals"
 ## Diagonal paw pairs move together: back-left with front-right.
 const PAW_PHASES: Array[float] = [0.0, PI, PI, 0.0]
 const WET_TINT := Color("#9fd4ee")
+const SULK_TINT := Color("#c9c0cf")
 ## Physics layer of walls and furniture; blocks the cat's line of sight.
 const WALL_LAYER_MASK := 1
 
@@ -70,18 +71,30 @@ func _ready() -> void:
 	_ear_twitch_in = _rng.randf_range(1.5, 4.0)
 
 
-## Called by hazards. Ends the level with a comic fail animation.
+## Called by hazards. Ends the level with a comic splash-and-spin animation.
 func fall_into(reason: String, sound: AudioStream) -> void:
+	if _fail(reason, sound):
+		_splash_fx.restart()
+		_play_fail_animation()
+
+
+## Called by the level when its clock runs out. Ends it with a sulking animation.
+func time_up(reason: String, sound: AudioStream) -> void:
+	if _fail(reason, sound):
+		_play_sulk_animation()
+
+
+## Enters FAILED and reports it; false when the level had already ended.
+func _fail(reason: String, sound: AudioStream) -> bool:
 	if state == State.FAILED or state == State.CLEARED:
-		return
+		return false
 	if is_instance_valid(_distraction):
 		_distraction.finish_play(0.0)
 	_distraction = null
 	velocity = Vector2.ZERO
 	_set_state(State.FAILED)
-	_splash_fx.restart()
 	failed.emit(reason, sound)
-	_play_fail_animation()
+	return true
 
 
 func _physics_process(delta: float) -> void:
@@ -257,6 +270,16 @@ func _play_fail_animation() -> void:
 	tween.tween_property(_visual, "modulate", WET_TINT, 0.3)
 	tween.chain().tween_property(_visual, "position:y", 0.0, 0.35).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	tween.tween_property(_visual, "scale", Vector2(_facing * 1.25, 0.7), 0.35)
+
+
+func _play_sulk_animation() -> void:
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(_visual, "scale", Vector2(_facing * 1.1, 0.8), 0.4).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(_visual, "modulate", SULK_TINT, 0.4)
+	tween.tween_property(_head, "rotation", 0.45, 0.4)
+	tween.tween_property(_tail, "rotation", 1.3, 0.5)
+	for i in _ears.size():
+		tween.tween_property(_ears[i], "rotation", _ear_rest[i] * 2.5, 0.3)
 
 
 func _process(delta: float) -> void:

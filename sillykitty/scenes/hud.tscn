@@ -1,0 +1,87 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/hud.gd" id="1_hud"]
+[ext_resource type="Texture2D" path="res://art/star.svg" id="2_star"]
+[ext_resource type="AudioStream" path="res://audio/sfx/tick.wav" id="3_tick"]
+[ext_resource type="AudioStream" path="res://audio/sfx/timeup.wav" id="4_timeup"]
+
+[node name="Hud" type="CanvasLayer"]
+script = ExtResource("1_hud")
+time_up_sound = ExtResource("4_timeup")
+
+[node name="LevelLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = 16.0
+offset_top = 2.0
+offset_right = 316.0
+offset_bottom = 30.0
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_font_sizes/font_size = 20
+text = "Level 1/1"
+vertical_alignment = 1
+
+[node name="Hint" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = 320.0
+offset_top = 2.0
+offset_right = 960.0
+offset_bottom = 30.0
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_font_sizes/font_size = 20
+text = "Hint"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TimerLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = 964.0
+offset_top = 1.0
+offset_right = 1264.0
+offset_bottom = 31.0
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_font_sizes/font_size = 24
+text = "0:00"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Banner" type="Label" parent="."]
+unique_name_in_owner = true
+offset_top = 290.0
+offset_right = 1280.0
+offset_bottom = 390.0
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
+theme_override_constants/outline_size = 14
+theme_override_font_sizes/font_size = 56
+text = "Banner"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Stars" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+offset_left = 540.0
+offset_top = 392.0
+offset_right = 740.0
+offset_bottom = 442.0
+mouse_filter = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Star1" type="TextureRect" parent="Stars"]
+mouse_filter = 2
+texture = ExtResource("2_star")
+stretch_mode = 5
+
+[node name="Star2" type="TextureRect" parent="Stars"]
+mouse_filter = 2
+texture = ExtResource("2_star")
+stretch_mode = 5
+
+[node name="Star3" type="TextureRect" parent="Stars"]
+mouse_filter = 2
+texture = ExtResource("2_star")
+stretch_mode = 5
+
+[node name="Tick" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("3_tick")

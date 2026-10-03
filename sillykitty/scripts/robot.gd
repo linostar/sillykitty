@@ -3,6 +3,9 @@ extends CharacterBody2D
 ## The player. Movement is the only input in the game: 8-directional top-down
 ## steering read from the move_* actions. The robot hovers, so hazards ignore it.
 
+## Emitted once, on the first frame with movement input (starts the level clock).
+signal started_moving
+
 @export var max_speed := 280.0
 @export var acceleration := 1600.0
 @export var friction := 1800.0
@@ -14,6 +17,7 @@ const MAX_TILT := 0.18
 const FACE_LOOK := Vector2(6.0, 4.0)
 
 var _time := 0.0
+var _has_moved := false
 
 @onready var _hover: Node2D = $Hover
 @onready var _shadow: Sprite2D = $Shadow
@@ -25,6 +29,9 @@ var _time := 0.0
 
 func _physics_process(delta: float) -> void:
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if not _has_moved and input != Vector2.ZERO:
+		_has_moved = true
+		started_moving.emit()
 	var rate := acceleration if input != Vector2.ZERO else friction
 	velocity = velocity.move_toward(input * max_speed, rate * delta)
 	move_and_slide()

@@ -91,6 +91,27 @@ def boing():
     return out
 
 
+def tick():
+    n = int(0.05 * RATE)
+    return [math.sin(2 * math.pi * 1800 * i / RATE) * math.exp(-60.0 * i / RATE) for i in range(n)]
+
+
+def timeup():
+    """Sad descending "wah-wah": two falling square-wave notes."""
+    out = []
+    for start, end, dur in ((392.0, 370.0, 0.28), (330.0, 247.0, 0.6)):
+        n = int(dur * RATE)
+        phase = 0.0
+        cutoff = [1800 - 1200 * i / n for i in range(n)]
+        raw = []
+        for i in range(n):
+            phase = (phase + (start + (end - start) * i / n) / RATE) % 1.0
+            raw.append(1.0 if phase < 0.5 else -1.0)
+        env = envelope(n, 0.02, 0.15)
+        out += [s * e for s, e in zip(lowpass(raw, cutoff), env)]
+    return out
+
+
 def write(path, samples):
     peak = max(abs(s) for s in samples) or 1.0
     frames = b"".join(struct.pack("<h", int(s / peak * PEAK * 32767)) for s in samples)
@@ -105,7 +126,8 @@ def main():
     out_dir = Path(sys.argv[1] if len(sys.argv) > 1 else "sillykitty/audio/sfx")
     out_dir.mkdir(parents=True, exist_ok=True)
     rng = random.Random(1002)
-    sounds = {"meow": meow(), "splash": splash(rng), "clear": clear(), "boing": boing()}
+    sounds = {"meow": meow(), "splash": splash(rng), "clear": clear(), "boing": boing(),
+              "tick": tick(), "timeup": timeup()}
     for name, samples in sounds.items():
         path = out_dir / f"{name}.wav"
         write(path, samples)

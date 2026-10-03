@@ -18,14 +18,23 @@ const AUDIO_RELEASE_MSEC := 500
 const WATCHDOG_MSEC := 120000
 ## Frames before/after the restart deadline at which "not yet" / "already" are asserted.
 const RESTART_MARGIN_FRAMES := 12
+const TEST_SAVE_PATH := "user://test_progress.json"
 
 var _failures: Array[String] = []
 var _passed := 0
 var _deadline_msec := 0
+var _real_save_path := ""
+## The "Game" autoload; this script compiles before autoloads exist, so it is fetched at start.
+var _game: GameState
 
 
 func _initialize() -> void:
 	_deadline_msec = Time.get_ticks_msec() + WATCHDOG_MSEC
+	_game = root.get_node_or_null("Game") as GameState
+	if _game == null:
+		printerr("test_gameplay: FAILED: Game autoload not found")
+		quit(1)
+		return
 	_run.call_deferred()
 
 
@@ -37,6 +46,10 @@ func _process(_delta: float) -> bool:
 
 
 func _run() -> void:
+	# Never touch the player's real save.
+	_real_save_path = _game.save_path
+	_game.save_path = TEST_SAVE_PATH
+	_delete_test_save()
 	await _test_robot_moves_with_input()
 	await _test_cat_chases_nearby_robot()
 	await _test_cat_ignores_distant_robot()
@@ -47,8 +60,16 @@ func _run() -> void:
 	await _test_cat_ignores_target_behind_wall()
 	await _test_cat_gives_up_unreachable_target()
 	await _test_cat_walks_into_nearby_bed()
-	await _test_level_restarts_after_fail()
-	await _test_level_restarts_after_clear()
+	_test_stars_for_time_left()
+	_test_next_index()
+	_test_save_round_trip()
+	_test_missing_save_starts_fresh()
+	_test_corrupt_save_is_replaced()
+	await _test_clock_starts_on_first_movement()
+	await _test_time_up_fails_level()
+	await _test_fail_retries_same_level()
+	await _test_clear_shows_end_banner_then_level_one()
+	_game.save_path = _real_save_path
 	# The audio thread releases freed sound playbacks in real time, and --fixed-fps
 	# frames take almost no real time; quitting too early reports them as leaks.
 	var release_deadline := Time.get_ticks_msec() + AUDIO_RELEASE_MSEC
@@ -185,7 +206,7 @@ func _test_cat_ignores_target_behind_wall() -> void:
 
 
 func _test_cat_gives_up_unreachable_target() -> void:
-	# A 10 px gap: the line of sight passes, the 18 px cat cannot.
+	# A 10 px gap: the line of sight passes, the cat (18 px collision radius) cannot.
 	var arena := _arena(Vector2(250, 150), Vector2(250, 300))
 	var cat := arena.get_node("Cat") as Cat
 	_add_wall(arena, Vector2(172.5, 360), Vector2(145, 20))
@@ -199,48 +220,166 @@ func _test_cat_gives_up_unreachable_target() -> void:
 	await _dispose(arena)
 
 
-func _test_level_restarts_after_fail() -> void:
+func _test_stars_for_time_left() -> void:
+	var stars: Array[int] = [Level.stars_for(30.0, 60.0), Level.stars_for(29.0, 60.0), Level.stars_for(15.0, 60.0),
+		Level.stars_for(14.0, 60.0), Level.stars_for(0.0, 60.0)]
+	_check(stars == [3, 2, 2, 1, 1], "stars_for_time_left", "got %s, expected [3, 2, 2, 1, 1]" % [stars])
+
+
+func _test_next_index() -> void:
+	var saved_paths := _game.level_paths
+	_game.level_paths = ["a", "b", "c"]
+	var got: Array[int] = [_game.next_index(0, true), _game.next_index(2, true), _game.next_index(1, false)]
+	_game.level_paths = saved_paths
+	_check(got == [1, 0, 1], "next_index", "got %s, expected [1, 0, 1]" % [got])
+
+
+func _test_save_round_trip() -> void:
+	var saved_paths := _game.level_paths
+	_game.level_paths = ["a", "b", "c"]
+	_game.load_progress()
+	_game.furthest_index = 2
+	_game.best_stars = [3, 1, 0]
+	_game.save_progress()
+	_game.load_progress()
+	var ok := _game.furthest_index == 2 and _game.best_stars == [3, 1, 0] and _game.reported_errors.is_empty()
+	_check(ok, "save_round_trip", "furthest=%d stars=%s errors=%s" % [_game.furthest_index, _game.best_stars, _game.reported_errors])
+	_game.level_paths = saved_paths
+	_delete_test_save()
+	_game.load_progress()
+
+
+func _test_missing_save_starts_fresh() -> void:
+	_delete_test_save()
+	_game.load_progress()
+	var ok := _game.furthest_index == 0 and _game.best_stars.count(0) == _game.level_count() and _game.reported_errors.is_empty()
+	_check(ok, "missing_save_starts_fresh", "furthest=%d stars=%s errors=%s" % [_game.furthest_index, _game.best_stars, _game.reported_errors])
+
+
+func _test_corrupt_save_is_replaced() -> void:
+	var cases: Array[String] = ["{{{ not json", "[1, 2]", '{"furthest_level": "x", "best_stars": []}', '{"furthest_level": 0, "best_stars": [1.5]}']
+	for contents in cases:
+		var file := FileAccess.open(TEST_SAVE_PATH, FileAccess.WRITE)
+		if file == null:
+			_check(false, "corrupt_save_is_replaced", "cannot write " + TEST_SAVE_PATH)
+			return
+		file.store_string(contents)
+		file.close()
+		_game.quiet_errors = true
+		_game.reported_errors.clear()
+		_game.load_progress()
+		_game.quiet_errors = false
+		var reported := _game.reported_errors.size() == 1 and "corrupt" in _game.reported_errors[0]
+		_game.reported_errors.clear()
+		_game.load_progress()
+		var replaced := _game.reported_errors.is_empty() and _game.furthest_index == 0
+		_check(reported and replaced, "corrupt_save_is_replaced", "contents=%s reported=%s replaced=%s" % [contents, reported, replaced])
+		_game.reported_errors.clear()
+	_delete_test_save()
+
+
+func _test_clock_starts_on_first_movement() -> void:
+	var level := await _load_level(-1.0)
+	await _frames(FPS)
+	var idle_ok := not level.clock_running and is_equal_approx(level.time_left, level.time_limit)
+	Input.action_press("move_up")
+	await _frames(1)
+	Input.action_release("move_up")
+	await _frames(FPS)
+	var elapsed := level.time_limit - level.time_left
+	_check(idle_ok and level.clock_running and elapsed > 0.9 and elapsed < 1.1, "clock_starts_on_first_movement",
+		"idle_ok=%s running=%s elapsed=%.2f" % [idle_ok, level.clock_running, elapsed])
+	await _unload_level()
+
+
+func _test_time_up_fails_level() -> void:
+	var level := await _load_level(2.0)
+	var cat := level.get_node("%Cat") as Cat
+	var hud := level.get_node("%Hud") as Hud
+	Input.action_press("move_up")
+	await _frames(1)
+	Input.action_release("move_up")
+	await _frames(int(2.0 * FPS) + 5)
+	var frozen_at := level.time_left
+	await _frames(20)
+	var ok := cat.state == Cat.State.FAILED and hud.banner_text() == Level.TIME_UP_TEXT \
+		and hud.timer_color() == Hud.WARNING_COLOR and not level.clock_running and level.time_left == frozen_at
+	_check(ok, "time_up_fails_level", "cat=%s banner='%s' red=%s running=%s" % [Cat.State.keys()[cat.state],
+		hud.banner_text(), hud.timer_color() == Hud.WARNING_COLOR, level.clock_running])
+	await _frames(int(_game.FAIL_RETRY_DELAY * FPS))
+	await _unload_level()
+
+
+func _test_fail_retries_same_level() -> void:
 	var trigger := func(level: Level) -> void:
 		(level.get_node("%Cat") as Cat).fall_into("test hazard", null)
-	await _check_level_restart("level_restarts_after_fail", Level.FAIL_RESTART_DELAY, trigger)
+	await _check_transition("fail_retries_same_level", trigger, _game.FAIL_RETRY_DELAY, "test hazard", _game.LEVEL_PATHS[0])
+	# The transition check proves the retry happens at FAIL_RETRY_DELAY (+ margin);
+	# the plan requires it within 2 seconds of failing.
+	var latest_retry := _game.FAIL_RETRY_DELAY + RESTART_MARGIN_FRAMES / float(FPS)
+	_check(latest_retry <= 2.0, "fail_retries_within_two_seconds", "retry happens by %.2f s" % latest_retry)
 
 
-func _test_level_restarts_after_clear() -> void:
+func _test_clear_shows_end_banner_then_level_one() -> void:
+	# The level list holds one level, so clearing it is clearing the last level.
 	var trigger := func(level: Level) -> void:
 		var cat := level.get_node("%Cat") as Cat
 		cat.global_position = (level.get_node("Bed") as Node2D).global_position + Vector2(-40, 0)
-	await _check_level_restart("level_restarts_after_clear", Level.CLEAR_RESTART_DELAY, trigger)
+	var last := _game.level_paths.size() - 1
+	await _check_transition("clear_shows_end_banner_then_level_one", trigger,
+		_game.CLEAR_ADVANCE_DELAY + _game.END_BANNER_DELAY, _game.END_TEXT, _game.level_paths[_game.next_index(last, true)])
+	_check(_game.best_stars[last] >= 1 and FileAccess.file_exists(TEST_SAVE_PATH), "clear_records_and_saves_stars",
+		"best_stars=%s save_exists=%s" % [_game.best_stars, FileAccess.file_exists(TEST_SAVE_PATH)])
+	_delete_test_save()
+	_game.load_progress()
 
 
-## Loads the real level, triggers an outcome and asserts: the banner shows, the
-## level is still there just before its restart delay and replaced just after.
-func _check_level_restart(test_name: String, delay: float, trigger: Callable) -> void:
-	var packed := load(LEVEL_PATH) as PackedScene
-	if packed == null:
-		_check(false, test_name, "cannot load " + LEVEL_PATH)
-		return
-	var level := packed.instantiate() as Level
-	root.add_child(level)
-	current_scene = level
+## Loads the first level, triggers an outcome and asserts: the expected banner is
+## showing just before `delay`, the level is still there then, and `expected_path`
+## is loaded just after `delay`.
+func _check_transition(test_name: String, trigger: Callable, delay: float, banner: String, expected_path: String) -> void:
+	var level := await _load_level(-1.0)
+	var hud := level.get_node("%Hud") as Hud
 	var outcomes: Array[bool] = []
-	level.finished.connect(func(cleared: bool) -> void: outcomes.append(cleared))
-	await _frames(10)
+	level.finished.connect(func(cleared: bool, _stars: int) -> void: outcomes.append(cleared))
 	trigger.call(level)
 	var waited := 0
 	while outcomes.is_empty() and waited < 5 * FPS:
 		await physics_frame
 		waited += 1
-	var banner_shown := (level.get_node("%Banner") as Label).visible if not outcomes.is_empty() else false
 	await _frames(int(delay * FPS) - RESTART_MARGIN_FRAMES)
-	var restarted_early := current_scene != level
+	var banner_before := hud.banner_text() if current_scene == level else "<scene already changed>"
 	await _frames(2 * RESTART_MARGIN_FRAMES)
-	var restarted := current_scene != null and current_scene != level and current_scene.scene_file_path == LEVEL_PATH
-	_check(outcomes.size() == 1 and banner_shown and not restarted_early and restarted, test_name,
-		"outcomes=%s banner_shown=%s restarted_early=%s restarted=%s" % [outcomes, banner_shown, restarted_early, restarted])
+	var loaded := current_scene != null and current_scene != level and current_scene.scene_file_path == expected_path
+	_check(outcomes.size() == 1 and banner_before == banner and loaded, test_name,
+		"outcomes=%s banner_before='%s' loaded=%s" % [outcomes, banner_before, loaded])
+	await _unload_level()
+
+
+## Instantiates the first listed level as the current scene. A `time_limit`
+## >= 0 overrides the level's own limit.
+func _load_level(time_limit: float) -> Level:
+	var level := (load(_game.LEVEL_PATHS[0]) as PackedScene).instantiate() as Level
+	if time_limit >= 0.0:
+		level.time_limit = time_limit
+	root.add_child(level)
+	current_scene = level
+	await _frames(2)
+	return level
+
+
+func _unload_level() -> void:
 	if current_scene != null:
 		current_scene.queue_free()
 		current_scene = null
 	await _frames(2)
+
+
+func _delete_test_save() -> void:
+	if FileAccess.file_exists(TEST_SAVE_PATH):
+		var error := DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE_PATH))
+		if error != OK:
+			_failures.append("cannot delete %s: %s" % [TEST_SAVE_PATH, error_string(error)])
 
 
 func _add_wall(arena: Node2D, bottom_centre: Vector2, size: Vector2) -> void:

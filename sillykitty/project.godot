@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="sillykitty"
-run/main_scene="res://scenes/levels/level_01.tscn"
+run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[autoload]
+
+Game="*res://scripts/game.gd"
 
 [debug]
 
