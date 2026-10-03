@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "smoke": "node smoke_web.mjs"
+    "smoke": "node smoke_web.mjs",
+    "resume": "node resume_web.mjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"

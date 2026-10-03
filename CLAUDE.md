@@ -27,6 +27,8 @@ tools/                     outside the Godot project, never imported or exported
   validate.sh              import + project check + gameplay tests + headless run
   build_web.sh             validate + web export + smoke test + itch zip
   smoke_web.mjs            Playwright (system Chrome) smoke test of the web export
+  resume_web.mjs           Playwright check: clear level 1 by keyboard, reload, game resumes at level 2
+  web_util.mjs             shared static server + headless Chrome launcher for the Playwright checks
   package.json, package-lock.json   pinned Playwright dev dependency
 build/                     git-ignored: web export, logs, smoke screenshot, sillykitty.zip
 ```
@@ -36,6 +38,7 @@ build/                     git-ignored: web export, logs, smoke screenshot, sill
 - One-time tool setup: `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --prefix tools ci` (uses installed Google Chrome).
 - Validate (run after every change): `tools/validate.sh` (each Godot call is killed after `GODOT_TIMEOUT` seconds, default 300)
 - Smoke test an existing export only: `npm --prefix tools run smoke` (or `node tools/smoke_web.mjs [buildDir]`, default `build/web`); screenshot goes to `build/smoke.png`. Env: `SMOKE_BOOT_TIMEOUT_MS`, `SMOKE_SETTLE_MS`.
+- Resume-after-reload check of an existing export: `npm --prefix tools run resume` (or `node tools/resume_web.mjs [buildDir]`). Env: `RESUME_BOOT_TIMEOUT_MS`, `RESUME_CLEAR_TIMEOUT_MS`. It replays real-time arrow keys anchored on level 1's walls, so redesigning level 1 means re-checking `LEVEL_1_KEYS`.
 - Release build for itch.io: `tools/build_web.sh` → `build/sillykitty.zip` (upload as HTML, "played in the browser", viewport 1280x720, SharedArrayBuffer off).
 - Regenerate sound effects: `python3 tools/sfx.py` (writes `sillykitty/audio/sfx/*.wav`, byte-identical on every run).
   `hum.wav` (vacuum) loops through `edit/loop_mode=2` in `hum.wav.import`; keep that line if the import file is ever recreated.
@@ -55,10 +58,12 @@ Gotchas:
 - `Vacuum` (extends `Hazard`) drives its `waypoints` loop (parent coordinates) at `speed` forever, humming. `Dog` (`CharacterBody2D`, export `cat`) sleeps until it sees the cat (line of sight) within `wake_radius`, which is far wider than its bite so the cat always wakes it before touching it, then barks and chases for `chase_time`, then returns home and sleeps, or lies down where it is after `return_time`; it stops waking and chasing once `cat.is_over()`; its child `Bite` hazard is scary only while awake. Set a level's `Dog.cat` like `Cat.robot`. Level design: keep a sleeping dog at least 60 px from furniture corners, or the cat can round the corner into its bite without ever being seen (touching a sleeping dog fails too).
 - `Game` autoload (`scripts/game.gd`, class `GameState`) owns `LEVEL_PATHS` (add every new level there), linear progression (clear -> next level, fail -> retry after 1.6 s, clear of the last level -> end banner -> level 1) and the save `user://progress.json` (furthest level, best stars). It logs every load, save and transition with a `[Game]` prefix; a corrupt save is reported once and replaced.
 - Reach the autoload with `get_node(GameState.AUTOLOAD_PATH) as GameState`, never the global name `Game`: test scripts compile before autoloads exist, so any script naming `Game` breaks every test.
-- `Level` (`scripts/level.gd`) exports `time_limit` and `hint`, runs the countdown (starts on the robot's `started_moving`, red and ticking for the last 10 s, time-up = fail), awards 1-3 stars from the time left and only reports `finished(cleared, stars)`; `Game` decides what loads next. No input is ever needed to continue.
+- `Level` (`scripts/level.gd`) exports `time_limit` and `hint`, runs the countdown (starts on the robot's `started_moving`, red and ticking for the last 10 s, time-up = fail), awards 1-3 stars from the time left (3 at >= 20% of the limit, 2 at >= 10%) and only reports `finished(cleared, stars)`; `Game` decides what loads next. No input is ever needed to continue.
 - Every level instances `scenes/hud.tscn` (unique name `%Hud`) and marks its robot and cat with unique names `%Robot` and `%Cat`.
 - Levels: `RoomFloor` draws the floor; border `Wall`s go under `Room`; furniture `Wall`s, the robot and the cat go under the y-sorted `Actors` node. `Wall` origin is the bottom-centre of its footprint. `Wall` and `RoomFloor` are `@tool` scripts, so levels can be laid out visually in the editor.
 - Positions of the robot, cat and props are their feet; visuals are drawn upward from there.
+- Robot, cat and dog use `wall_min_slide_angle = 0` so they slide along furniture even when pushing into it almost head-on (the default 15 degrees freezes a chasing cat against walls).
+- Levels 1-8 (`LEVEL_PATHS`) introduce one mechanic each: puddle (1), yarn (2), puddle maze (3), vacuum (4), long route with nap pressure (5), dog (6), vacuum + puddles + yarn (7), finale with dog, vacuum and puddles (8). `tools/test_gameplay.gd` holds one scripted solution route per level (`LEVEL_ROUTES`, flown through the `move_*` actions only) and checks each level's mechanics, that its route clears it with 3 stars, and the time-limit rules: limit / route clear time >= 1.25 everywhere, >= 1.8 on levels 1-2, <= 1.5 on levels 7-8, never rising from one level to the next. The test prints the measured ratios; after changing a level or any cat, vacuum or dog number, re-run the tests and re-set `time_limit` from them.
 
 ## GDScript conventions
 - Godot 4 style guide: tabs, `snake_case` files/functions/variables, `PascalCase` nodes and `class_name`, `UPPER_SNAKE` constants, signals in past tense.

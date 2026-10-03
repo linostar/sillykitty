@@ -12,7 +12,6 @@ const PUDDLE_SCENE := preload("res://scenes/puddle.tscn")
 const BED_SCENE := preload("res://scenes/bed.tscn")
 const VACUUM_SCENE := preload("res://scenes/vacuum.tscn")
 const DOG_SCENE := preload("res://scenes/dog.tscn")
-const LEVEL_PATH := "res://scenes/levels/level_01.tscn"
 const FPS := 60
 const AUDIO_RELEASE_MSEC := 500
 
@@ -21,6 +20,39 @@ const WATCHDOG_MSEC := 120000
 ## Frames before/after the restart deadline at which "not yet" / "already" are asserted.
 const RESTART_MARGIN_FRAMES := 12
 const TEST_SAVE_PATH := "user://test_progress.json"
+
+## One scripted solution per level (index = level number - 1), flown only through
+## the move_* actions: Vector2 = fly to that point, Vector3 = fly to (x, y) but
+## turn back for the cat whenever it is more than z px behind, float = hover for
+## that many seconds. Their clear times set the levels' time limits (see
+## _test_level_routes for the rules).
+const LEVEL_ROUTES: Array[Array] = [
+	[Vector2(380, 470), Vector2(500, 270), Vector2(780, 260), Vector2(920, 380), Vector2(1180, 470)],
+	[Vector2(190, 400), Vector2(210, 200), Vector2(600, 262), Vector3(1000, 262, 100), Vector2(1200, 190)],
+	[Vector2(300, 470), Vector3(430, 470, 200), Vector3(440, 300, 150), Vector3(560, 260, 150), Vector3(690, 300, 150),
+		Vector3(690, 420, 150), Vector3(820, 470, 150), Vector3(950, 420, 150), Vector3(950, 300, 150),
+		Vector3(1080, 250, 150), Vector2(1200, 220)],
+	[Vector2(260, 520), Vector2(640, 580), Vector2(1000, 520), Vector2(1200, 390)],
+	[Vector2(700, 140), Vector2(1130, 130), Vector2(1150, 330), Vector2(900, 350), Vector2(200, 350), Vector2(140, 560),
+		Vector2(500, 540), Vector2(900, 520), Vector2(1190, 580)],
+	[Vector2(380, 420), Vector3(480, 180, 180), Vector3(640, 130, 160), Vector2(860, 200), Vector2(1200, 300)],
+	[Vector2(450, 430), 3.2, Vector2(650, 540), Vector2(820, 570), Vector2(1000, 550), Vector2(1200, 380)],
+	[Vector2(190, 400), Vector2(440, 430), Vector2(740, 440), Vector3(1040, 430, 150), Vector3(1040, 200, 120),
+		Vector2(1200, 150)],
+]
+## Without a Vector3 pace, the route turns back for a cat more than this far behind.
+const ROUTE_PACE := 300.0
+const ROUTE_REACH := 14.0
+## A route step that has not reached its point by then is abandoned (the level then fails its check).
+const ROUTE_STEP_TIMEOUT := 20.0
+## Seconds the cat gets to walk into its bed after the route ends.
+const ROUTE_SETTLE := 15.0
+## The mechanics each level must have and the one it introduces (criterion 24).
+const LEVEL_MECHANICS: Array[Array] = [
+	["puddle"], ["yarn"], ["puddle"], ["vacuum"], ["puddle", "yarn"], ["dog"],
+	["vacuum", "puddle", "yarn"], ["dog", "vacuum", "puddle"],
+]
+const INTRODUCED_AT: Dictionary[String, int] = {"puddle": 1, "yarn": 2, "vacuum": 4, "dog": 6}
 
 var _failures: Array[String] = []
 var _passed := 0
@@ -84,7 +116,8 @@ func _run() -> void:
 	await _test_clock_starts_on_first_movement()
 	await _test_time_up_fails_level()
 	await _test_fail_retries_same_level()
-	await _test_clear_shows_end_banner_then_level_one()
+	await _test_clear_advances_to_next_level()
+	await _test_level_routes()
 	_game.save_path = _real_save_path
 	# The audio thread releases freed sound playbacks in real time, and --fixed-fps
 	# frames take almost no real time; quitting too early reports them as leaks.
@@ -496,8 +529,8 @@ func _test_nap_drains_while_busy() -> void:
 
 
 func _test_stars_for_time_left() -> void:
-	var stars: Array[int] = [Level.stars_for(30.0, 60.0), Level.stars_for(29.0, 60.0), Level.stars_for(15.0, 60.0),
-		Level.stars_for(14.0, 60.0), Level.stars_for(0.0, 60.0)]
+	var stars: Array[int] = [Level.stars_for(12.0, 60.0), Level.stars_for(11.0, 60.0), Level.stars_for(6.0, 60.0),
+		Level.stars_for(5.0, 60.0), Level.stars_for(0.0, 60.0)]
 	_check(stars == [3, 2, 2, 1, 1], "stars_for_time_left", "got %s, expected [3, 2, 2, 1, 1]" % [stars])
 
 
@@ -597,18 +630,131 @@ func _test_fail_retries_same_level() -> void:
 	_check(latest_retry <= 2.0, "fail_retries_within_two_seconds", "retry happens by %.2f s" % latest_retry)
 
 
-func _test_clear_shows_end_banner_then_level_one() -> void:
-	# The level list holds one level, so clearing it is clearing the last level.
+func _test_clear_advances_to_next_level() -> void:
 	var trigger := func(level: Level) -> void:
 		var cat := level.get_node("%Cat") as Cat
 		cat.global_position = (level.get_node("Bed") as Node2D).global_position + Vector2(-40, 0)
-	var last := _game.level_paths.size() - 1
-	await _check_transition("clear_shows_end_banner_then_level_one", trigger,
-		_game.CLEAR_ADVANCE_DELAY + _game.END_BANNER_DELAY, _game.END_TEXT, _game.level_paths[_game.next_index(last, true)])
-	_check(_game.best_stars[last] >= 1 and FileAccess.file_exists(TEST_SAVE_PATH), "clear_records_and_saves_stars",
-		"best_stars=%s save_exists=%s" % [_game.best_stars, FileAccess.file_exists(TEST_SAVE_PATH)])
+	await _check_transition("clear_advances_to_next_level", trigger, _game.CLEAR_ADVANCE_DELAY, Level.CLEAR_TEXT,
+		_game.LEVEL_PATHS[1])
+	_check(_game.best_stars[0] >= 1 and _game.furthest_index == 1 and FileAccess.file_exists(TEST_SAVE_PATH),
+		"clear_records_and_saves_progress", "best_stars=%s furthest=%d save_exists=%s" % [_game.best_stars,
+		_game.furthest_index, FileAccess.file_exists(TEST_SAVE_PATH)])
 	_delete_test_save()
 	_game.load_progress()
+
+
+## Flies every level's scripted route (criteria 4, 24 and 25): each level has
+## the mechanics planned for it, the route clears it with 3 stars, the clear
+## banner shows and the next level loads (the last level shows the end banner
+## and loads level 1). Time limit / route clear time must be >= 1.25 on every
+## level, >= 1.8 on levels 1-2, <= 1.5 on levels 7-8 and never rise from one
+## level to the next.
+func _test_level_routes() -> void:
+	var ratios: Array[float] = []
+	var count := _game.LEVEL_PATHS.size()
+	for i in count:
+		var level := await _load_level(-1.0, i)
+		var bot := level.get_node("%Robot") as Robot
+		var cat := level.get_node("%Cat") as Cat
+		var hud := level.get_node("%Hud") as Hud
+		var name := "level_%02d" % (i + 1)
+		var missing := _missing_mechanics(level, i)
+		_check(missing.is_empty(), name + "_mechanics", "missing or introduced too early: %s" % [missing])
+		var outcomes: Array[int] = []
+		level.finished.connect(func(cleared: bool, earned: int) -> void: outcomes.append(earned if cleared else -1))
+		await _fly_route(LEVEL_ROUTES[i], bot, cat)
+		var settle := 0
+		while outcomes.is_empty() and settle < int(ROUTE_SETTLE * FPS):
+			await physics_frame
+			settle += 1
+		var used := level.time_limit - level.time_left
+		var stars: int = outcomes[0] if outcomes.size() == 1 else -1
+		if stars > 0:
+			ratios.append(level.time_limit / used)
+		var last := i == count - 1
+		var delay := _game.CLEAR_ADVANCE_DELAY + (_game.END_BANNER_DELAY if last else 0.0)
+		await _frames(int(delay * FPS) - RESTART_MARGIN_FRAMES)
+		var banner := hud.banner_text() if current_scene == level else "<scene already changed>"
+		await _frames(2 * RESTART_MARGIN_FRAMES)
+		var expected_path := _game.LEVEL_PATHS[0 if last else i + 1]
+		var loaded := current_scene != null and current_scene != level and current_scene.scene_file_path == expected_path
+		_check(stars == 3 and banner == (_game.END_TEXT if last else Level.CLEAR_TEXT) and loaded, name + "_route",
+			"stars=%d (-1 = not cleared) used=%.2f s of %.0f banner='%s' next_loaded=%s cat=%s" % [stars, used,
+			level.time_limit if is_instance_valid(level) else -1.0, banner, loaded, cat.global_position if is_instance_valid(cat) else Vector2.ZERO])
+		await _unload_level()
+	var rules_ok := ratios.size() == count
+	for i in ratios.size():
+		rules_ok = rules_ok and ratios[i] >= 1.25 and (i > 1 or ratios[i] >= 1.8) and (i < count - 2 or ratios[i] <= 1.5) \
+			and (i == 0 or ratios[i] <= ratios[i - 1])
+	var shown := ", ".join(ratios.map(func(r: float) -> String: return "%.2f" % r))
+	print("test_gameplay: time limit / route clear time per level: " + shown)
+	_check(rules_ok, "level_time_limits", "limit / route time per level: " + shown)
+	_delete_test_save()
+	_game.load_progress()
+
+
+## Mechanics the level lacks from LEVEL_MECHANICS, plus any it has before INTRODUCED_AT.
+func _missing_mechanics(level: Level, index: int) -> Array[String]:
+	var found: Array[String] = []
+	for node in level.find_children("*", "Node", true, false):
+		var kind := ""
+		if node is Vacuum:
+			kind = "vacuum"
+		elif node is Dog:
+			kind = "dog"
+		elif node is Distraction:
+			kind = "yarn"
+		elif node is Hazard and not (node.get_parent() is Dog):
+			kind = "puddle"
+		if kind != "" and not found.has(kind):
+			found.append(kind)
+	var problems: Array[String] = []
+	for kind: String in LEVEL_MECHANICS[index]:
+		if not found.has(kind):
+			problems.append(kind)
+	for kind in found:
+		if index + 1 < INTRODUCED_AT[kind]:
+			problems.append("early " + kind)
+	return problems
+
+
+## Flies the robot along a LEVEL_ROUTES route until it ends or the level is over
+## for the cat. Like a player, it turns back for the cat when it falls behind.
+func _fly_route(route: Array, bot: Robot, cat: Cat) -> void:
+	for step: Variant in route:
+		var frames := 0
+		if step is float:
+			_steer(Vector2.ZERO)
+			while frames < int(step * FPS) and not cat.is_over():
+				await physics_frame
+				frames += 1
+			continue
+		var target := Vector2(step.x, step.y) if step is Vector3 else step as Vector2
+		var pace: float = step.z if step is Vector3 else ROUTE_PACE
+		while not cat.is_over() and frames < int(ROUTE_STEP_TIMEOUT * FPS):
+			var offset := target - bot.global_position
+			if offset.length() < ROUTE_REACH:
+				break
+			var behind := cat.global_position - bot.global_position
+			_steer(behind.normalized() if behind.length() > pace else offset.normalized())
+			await physics_frame
+			frames += 1
+	_steer(Vector2.ZERO)
+
+
+## Presses the move_* actions with analog strengths for `direction` (zero releases them).
+func _steer(direction: Vector2) -> void:
+	_press("move_right", direction.x)
+	_press("move_left", -direction.x)
+	_press("move_down", direction.y)
+	_press("move_up", -direction.y)
+
+
+func _press(action: StringName, strength: float) -> void:
+	if strength > 0.001:
+		Input.action_press(action, strength)
+	else:
+		Input.action_release(action)
 
 
 ## Loads the first level, triggers an outcome and asserts: the expected banner is
@@ -633,10 +779,10 @@ func _check_transition(test_name: String, trigger: Callable, delay: float, banne
 	await _unload_level()
 
 
-## Instantiates the first listed level as the current scene. A `time_limit`
-## >= 0 overrides the level's own limit.
-func _load_level(time_limit: float) -> Level:
-	var level := (load(_game.LEVEL_PATHS[0]) as PackedScene).instantiate() as Level
+## Instantiates a listed level (the first by default) as the current scene. A
+## `time_limit` >= 0 overrides the level's own limit.
+func _load_level(time_limit: float, index: int = 0) -> Level:
+	var level := (load(_game.LEVEL_PATHS[index]) as PackedScene).instantiate() as Level
 	if time_limit >= 0.0:
 		level.time_limit = time_limit
 	root.add_child(level)

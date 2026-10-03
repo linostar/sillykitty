@@ -5,26 +5,29 @@
 [ext_resource type="Script" path="res://scripts/wall.gd" id="3_wall"]
 [ext_resource type="PackedScene" path="res://scenes/puddle.tscn" id="4_puddle"]
 [ext_resource type="PackedScene" path="res://scenes/bed.tscn" id="5_bed"]
+[ext_resource type="PackedScene" path="res://scenes/yarn.tscn" id="6_yarn"]
 [ext_resource type="PackedScene" path="res://scenes/robot.tscn" id="7_robot"]
 [ext_resource type="PackedScene" path="res://scenes/cat.tscn" id="8_cat"]
 [ext_resource type="AudioStream" path="res://audio/sfx/clear.wav" id="11_clear"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="12_hud"]
 
-[node name="Level01" type="Node2D"]
+[node name="Level05" type="Node2D"]
 script = ExtResource("1_level")
-time_limit = 17.0
-hint = "Lead kitty to its bed. Kitty hates water!"
+time_limit = 27.0
+hint = "A long way home. Don't leave kitty behind or it naps!"
 
 [node name="Floor" type="Node2D" parent="."]
 script = ExtResource("2_floor")
 
 [node name="Puddle1" parent="." instance=ExtResource("4_puddle")]
-position = Vector2(640, 470)
-rotation = 1.570796
-scale = Vector2(1.3, 1.3)
+position = Vector2(760, 610)
+scale = Vector2(1, 1)
 
 [node name="Bed" parent="." instance=ExtResource("5_bed")]
-position = Vector2(1100, 470)
+position = Vector2(1130, 590)
+
+[node name="Yarn1" parent="." instance=ExtResource("6_yarn")]
+position = Vector2(560, 345)
 
 [node name="Room" type="Node2D" parent="."]
 
@@ -51,25 +54,30 @@ size = Vector2(1280, 32)
 [node name="Actors" type="Node2D" parent="."]
 y_sort_enabled = true
 
-[node name="Sofa1" type="StaticBody2D" parent="Actors"]
-position = Vector2(640, 170)
+[node name="Furniture1" type="StaticBody2D" parent="Actors"]
+position = Vector2(516, 250)
 script = ExtResource("3_wall")
-size = Vector2(260, 70)
+size = Vector2(968, 40)
+
+[node name="Furniture2" type="StaticBody2D" parent="Actors"]
+position = Vector2(764, 470)
+script = ExtResource("3_wall")
+size = Vector2(968, 40)
+
+[node name="Sofa3" type="StaticBody2D" parent="Actors"]
+position = Vector2(420, 110)
+script = ExtResource("3_wall")
+size = Vector2(120, 60)
 top_color = Color(0.561, 0.749, 0.541, 1)
 front_color = Color(0.431, 0.62, 0.412, 1)
 
-[node name="Furniture2" type="StaticBody2D" parent="Actors"]
-position = Vector2(300, 660)
-script = ExtResource("3_wall")
-size = Vector2(200, 50)
-
 [node name="Robot" parent="Actors" instance=ExtResource("7_robot")]
 unique_name_in_owner = true
-position = Vector2(200, 470)
+position = Vector2(200, 120)
 
 [node name="Cat" parent="Actors" node_paths=PackedStringArray("robot") instance=ExtResource("8_cat")]
 unique_name_in_owner = true
-position = Vector2(120, 470)
+position = Vector2(110, 140)
 robot = NodePath("../Robot")
 
 [node name="Hud" parent="." instance=ExtResource("12_hud")]

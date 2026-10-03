@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Full release pipeline: validate, clean single-threaded web export to
-# build/web/, Playwright smoke test, then build/sillykitty.zip for itch.io
+# build/web/, Playwright smoke test and resume-after-reload check, then
+# build/sillykitty.zip for itch.io
 # (index.html at the zip root, no macOS metadata).
 # Env: GODOT (Godot binary).
 set -euo pipefail
@@ -25,6 +26,7 @@ for file in index.html index.js index.wasm index.pck; do
 done
 
 node tools/smoke_web.mjs build/web
+node tools/resume_web.mjs build/web
 
 rm -f build/sillykitty.zip
 (cd build/web && zip -X -q ../sillykitty.zip index.*)

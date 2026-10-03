@@ -28,6 +28,7 @@ radius = 18.0
 collision_layer = 4
 collision_mask = 1
 motion_mode = 1
+wall_min_slide_angle = 0.0
 script = ExtResource("1_script")
 tuning = ExtResource("2_tuning")
 nap_sound = ExtResource("11_yawn")

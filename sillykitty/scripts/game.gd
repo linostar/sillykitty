@@ -11,6 +11,13 @@ extends Node
 const AUTOLOAD_PATH := ^"/root/Game"
 const LEVEL_PATHS: Array[String] = [
 	"res://scenes/levels/level_01.tscn",
+	"res://scenes/levels/level_02.tscn",
+	"res://scenes/levels/level_03.tscn",
+	"res://scenes/levels/level_04.tscn",
+	"res://scenes/levels/level_05.tscn",
+	"res://scenes/levels/level_06.tscn",
+	"res://scenes/levels/level_07.tscn",
+	"res://scenes/levels/level_08.tscn",
 ]
 const SAVE_PATH := "user://progress.json"
 const FAIL_RETRY_DELAY := 1.6

@@ -11,8 +11,10 @@ const TIME_UP_TEXT := "Time's up! Kitty lost interest."
 ## The countdown turns red and ticks once per second from here down.
 const WARNING_SECONDS := 10
 ## Fractions of the time limit still left for 3 and 2 stars; any clear earns 1.
-const THREE_STAR_FRACTION := 0.5
-const TWO_STAR_FRACTION := 0.25
+## Every time limit is at least 1.25x its level's scripted solution time, so a
+## run at that pace always leaves 20% and earns 3 stars.
+const THREE_STAR_FRACTION := 0.2
+const TWO_STAR_FRACTION := 0.1
 
 @export var time_limit := 60.0
 @export_multiline var hint := "Lead the kitty to its bed!"

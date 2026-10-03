@@ -3,11 +3,9 @@
 // missing engine boot log or a still-visible Godot status overlay.
 // Usage: node tools/smoke_web.mjs [buildDir]   (default: build/web)
 // Env:   SMOKE_BOOT_TIMEOUT_MS (default 30000), SMOKE_SETTLE_MS (default 3000)
-import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
-import { extname, join, resolve, sep } from 'node:path';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { launchChrome, serveBuild } from './web_util.mjs';
 
 const repoRoot = resolve(fileURLToPath(import.meta.url), '..', '..');
 const buildDir = resolve(process.argv[2] ?? join(repoRoot, 'build', 'web'));
@@ -15,36 +13,14 @@ const bootTimeoutMs = Number(process.env.SMOKE_BOOT_TIMEOUT_MS ?? 30000);
 const settleMs = Number(process.env.SMOKE_SETTLE_MS ?? 3000);
 const screenshotPath = join(buildDir, '..', 'smoke.png');
 
-const MIME = {
-  '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm',
-  '.pck': 'application/octet-stream', '.png': 'image/png', '.svg': 'image/svg+xml',
-};
-
-const server = createServer(async (req, res) => {
-  const path = resolve(buildDir, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
-  if (path !== buildDir && !path.startsWith(buildDir + sep)) {
-    res.writeHead(403).end();
-    return;
-  }
-  try {
-    const body = await readFile(path);
-    res.writeHead(200, { 'Content-Type': MIME[extname(path)] ?? 'application/octet-stream' }).end(body);
-  } catch (err) {
-    console.error(`[server] ${req.url}: ${err.code ?? err.message}`);
-    res.writeHead(404).end();
-  }
-});
-
 const failures = [];
 let browser;
+let server;
 try {
-  await new Promise((ok, fail) => server.once('error', fail).listen(0, '127.0.0.1', ok));
-  const url = `http://127.0.0.1:${server.address().port}/index.html`;
-  browser = await chromium.launch({
-    channel: 'chrome',
-    headless: true,
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
-  });
+  const served = await serveBuild(buildDir);
+  server = served.server;
+  const url = served.url;
+  browser = await launchChrome();
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', (e) => failures.push(`page error: ${e.message}`));
   page.on('requestfailed', (r) => failures.push(`request failed: ${r.url()} ${r.failure()?.errorText}`));
@@ -92,7 +68,7 @@ try {
   failures.push(`smoke test aborted: ${err.message}`);
 } finally {
   await browser?.close();
-  server.close();
+  server?.close();
 }
 
 if (failures.length > 0) {
