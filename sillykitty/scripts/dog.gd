@@ -2,11 +2,12 @@ class_name Dog
 extends CharacterBody2D
 ## Sleeps on its spot until it sees the cat within wake_radius (walls block
 ## its view), then barks and chases the cat for chase_time, trots home and
-## sleeps again. The wake radius is far wider than the bite, so the cat always
-## wakes the dog before it can touch it. If it cannot
-## get home within return_time it lies down where it is, so it never stays
-## awake for good. Its Bite hazard fails the level on touch, and the cat only
-## fears it while it is awake.
+## sleeps again. The wake radius is far wider than the bite, so in the open the
+## cat always wakes the dog before it can touch it. If it cannot get home
+## within return_time it lies down where it is, so it never stays awake for
+## good. Once the level is over for the cat it no longer wakes or chases. Its
+## Bite hazard fails the level on touch, and the cat only fears it while it is
+## awake.
 
 enum State { SLEEP, CHASE, RETURN }
 
@@ -67,7 +68,7 @@ func _physics_process(delta: float) -> void:
 			if _sees_cat():
 				_enter(State.CHASE)
 		State.CHASE:
-			if _state_time >= chase_time:
+			if _state_time >= chase_time or cat.is_over():
 				_enter(State.RETURN)
 		State.RETURN:
 			if global_position.distance_to(_home) <= HOME_DISTANCE or _state_time >= return_time:
@@ -77,7 +78,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _sees_cat() -> bool:
-	if global_position.distance_to(cat.global_position) >= wake_radius:
+	if cat.is_over() or global_position.distance_to(cat.global_position) >= wake_radius:
 		return false
 	var query := PhysicsRayQueryParameters2D.create(global_position, cat.global_position, Cat.WALL_LAYER_MASK)
 	return get_world_2d().direct_space_state.intersect_ray(query).is_empty()

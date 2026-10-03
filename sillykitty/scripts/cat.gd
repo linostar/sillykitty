@@ -237,18 +237,18 @@ func _sense_threats(delta: float) -> void:
 		_scared_left = tuning.flee_linger
 
 
-## A cornered cat that cannot get away gives up fleeing the threats it sees
-## for give_up_cooldown after give_up_time, like an unreachable target, so it
-## is never pinned in FLEE for good.
+## A cornered cat that cannot get away for flee_give_up_time stops fleeing the
+## threats it sees for flee_ignore_time, so it is never pinned in FLEE for good
+## but soon reacts to them again.
 func _track_flee(delta: float) -> void:
 	if state != State.FLEE or get_real_velocity().length() >= tuning.flee_stall_speed:
 		_flee_stall = 0.0
 		return
 	_flee_stall += delta
-	if _flee_stall < tuning.give_up_time:
+	if _flee_stall < tuning.flee_give_up_time:
 		return
 	for id in _seen_threats:
-		_ignored[id] = tuning.give_up_cooldown
+		_ignored[id] = tuning.flee_ignore_time
 	_scared_left = 0.0
 	_flee_stall = 0.0
 
@@ -343,10 +343,15 @@ func _desired_velocity() -> Vector2:
 		State.FLEE:
 			var direction := _flee_direction
 			if is_on_wall():
-				# Run along the wall instead of into it; straight at it, pick a side.
+				# Run along the wall instead of into it; straight at it, take the side
+				# the threats push towards.
 				var normal := get_wall_normal()
 				direction = direction.slide(normal)
-				direction = normal.orthogonal() if direction.length() < 0.3 else direction.normalized()
+				if direction.length() < 0.3:
+					var side := normal.orthogonal()
+					direction = side if side.dot(_flee_direction) >= 0.0 else -side
+				else:
+					direction = direction.normalized()
 			return direction * tuning.run_speed
 		_:
 			return Vector2.ZERO

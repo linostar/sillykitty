@@ -42,8 +42,12 @@ extends Resource
 ## Seconds the cat keeps running after it last saw a threat in range.
 @export var flee_linger: float
 @export var hiss_cooldown: float
-## Below this real speed a fleeing cat counts as cornered (see give_up_time).
+## Below this real speed a fleeing cat counts as cornered.
 @export var flee_stall_speed: float
+## Seconds cornered before the cat stops fleeing the threats it sees.
+@export var flee_give_up_time: float
+## Seconds a cornered cat then ignores those threats.
+@export var flee_ignore_time: float
 
 @export_group("Nap")
 ## Seconds of having nothing to do before the cat dozes off (fails the level).

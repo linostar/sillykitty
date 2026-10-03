@@ -72,6 +72,8 @@ func _run() -> void:
 	await _test_threat_touch_fails_level()
 	await _test_dog_sleeps_wakes_chases_and_sleeps_again()
 	await _test_dog_cut_off_from_home_still_sleeps()
+	await _test_dog_ignores_cat_once_level_is_over()
+	await _test_robot_unharmed_by_dog()
 	await _test_nap_waits_for_first_movement_then_fails()
 	await _test_nap_drains_while_busy()
 	_test_stars_for_time_left()
@@ -320,13 +322,14 @@ func _test_threat_behind_wall_is_ignored() -> void:
 
 
 func _test_cat_slides_along_wall_when_fleeing() -> void:
-	# The vacuum drives straight at the cat, which has a wall right behind it.
+	# The vacuum drives almost straight at the cat, which has a wall right behind
+	# it; coming from a little above, it pushes the cat down along the wall.
 	var arena := _arena(Vector2(2000, 300), Vector2(150, 300))
 	var cat := arena.get_node("Cat") as Cat
 	_add_wall(arena, Vector2(110, 700), Vector2(20, 700))
-	_add_vacuum(arena, Vector2(320, 300), PackedVector2Array([Vector2(175, 300)]))
+	_add_vacuum(arena, Vector2(320, 290), PackedVector2Array([Vector2(175, 290)]))
 	await _frames(4 * FPS)
-	_check(not cat.is_over() and absf(cat.position.y - 300.0) > 100.0, "cat_slides_along_wall_when_fleeing",
+	_check(not cat.is_over() and cat.position.y > 400.0, "cat_slides_along_wall_when_fleeing",
 		"cat=%s position=%s" % [Cat.State.keys()[cat.state], cat.position])
 	await _dispose(arena)
 
@@ -342,11 +345,17 @@ func _test_cornered_cat_gives_up_fleeing() -> void:
 	await _frames(FPS)
 	var cornered := cat.state == Cat.State.FLEE
 	var gave_up := false
-	for i in int((cat.tuning.give_up_time + 1.0) * FPS):
+	for i in int((cat.tuning.flee_give_up_time + 1.0) * FPS):
 		await physics_frame
 		gave_up = gave_up or (cat.state != Cat.State.FLEE and not cat.is_over())
-	_check(cornered and gave_up, "cornered_cat_gives_up_fleeing",
-		"cornered=%s gave_up=%s cat=%s position=%s" % [cornered, gave_up, Cat.State.keys()[cat.state], cat.position])
+	# The vacuum is only ignored briefly: the cat soon reacts to it again.
+	var fled_again := false
+	for i in int((cat.tuning.flee_ignore_time + 0.5) * FPS):
+		await physics_frame
+		fled_again = fled_again or (gave_up and cat.state == Cat.State.FLEE)
+	_check(cornered and gave_up and fled_again, "cornered_cat_gives_up_fleeing",
+		"cornered=%s gave_up=%s fled_again=%s cat=%s position=%s" % [cornered, gave_up, fled_again,
+		Cat.State.keys()[cat.state], cat.position])
 	await _dispose(arena)
 
 
@@ -409,6 +418,41 @@ func _test_dog_cut_off_from_home_still_sleeps() -> void:
 	var away := dog.position.distance_to(Vector2(600, 300))
 	_check(woke and dog.state == Dog.State.SLEEP and away > 50.0, "dog_cut_off_from_home_still_sleeps",
 		"woke=%s dog=%s distance_from_home=%.1f" % [woke, Dog.State.keys()[dog.state], away])
+	await _dispose(arena)
+
+
+func _test_dog_ignores_cat_once_level_is_over() -> void:
+	# A chasing dog gives up when the cat fails, and a failed cat does not wake a dog.
+	var arena := _arena(Vector2(400, 2000), Vector2(480, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var chaser := _add_dog(arena, Vector2(600, 300), cat)
+	await _frames(3)
+	var woke := chaser.state == Dog.State.CHASE
+	cat.time_up("test time up", null)
+	await _frames(3)
+	var stopped := chaser.state != Dog.State.CHASE
+	var sleeper := _add_dog(arena, Vector2(480, 420), cat)
+	var slept := true
+	for i in FPS:
+		await physics_frame
+		slept = slept and sleeper.state == Dog.State.SLEEP
+	_check(woke and stopped and slept, "dog_ignores_cat_once_level_is_over",
+		"woke=%s stopped=%s slept=%s" % [woke, stopped, slept])
+	await _dispose(arena)
+
+
+func _test_robot_unharmed_by_dog() -> void:
+	# The robot hovers right over the dog; the bite detects touches asleep or awake, but only the cat's.
+	var arena := _arena(Vector2(600, 300), Vector2(2000, 2000))
+	var cat := arena.get_node("Cat") as Cat
+	var bot := arena.get_node("Robot") as Robot
+	var bite := _add_dog(arena, Vector2(600, 300), cat).get_node("Bite") as Hazard
+	var detected := false
+	for i in FPS:
+		await physics_frame
+		detected = detected or bite.overlaps_body(bot)
+	_check(not detected and not cat.is_over(), "robot_unharmed_by_dog",
+		"detected=%s cat=%s" % [detected, Cat.State.keys()[cat.state]])
 	await _dispose(arena)
 
 
