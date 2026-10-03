@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="76" height="64" viewBox="0 0 76 64">
+  <defs>
+    <clipPath id="shell"><rect x="8" y="6" width="60" height="52" rx="24"/></clipPath>
+  </defs>
+  <rect x="2" y="24" width="10" height="16" rx="4" fill="#5FA9C2" stroke="#3B2C35" stroke-width="3"/>
+  <rect x="64" y="24" width="10" height="16" rx="4" fill="#5FA9C2" stroke="#3B2C35" stroke-width="3"/>
+  <rect x="8" y="6" width="60" height="52" rx="24" fill="#9ADBEA"/>
+  <g clip-path="url(#shell)">
+    <ellipse cx="38" cy="64" rx="40" ry="16" fill="#5FA9C2"/>
+    <ellipse cx="24" cy="15" rx="11" ry="5" fill="#FFFFFF" opacity="0.55" transform="rotate(-20 24 15)"/>
+  </g>
+  <rect x="8" y="6" width="60" height="52" rx="24" fill="none" stroke="#3B2C35" stroke-width="3"/>
+</svg>
