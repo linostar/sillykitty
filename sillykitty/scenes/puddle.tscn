@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/hazard.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://art/puddle.svg" id="2_puddle"]
+[ext_resource type="AudioStream" path="res://audio/sfx/splash.wav" id="3_splash"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_puddle"]
 radius = 36.0
@@ -12,6 +13,7 @@ collision_layer = 0
 collision_mask = 4
 monitorable = false
 script = ExtResource("1_script")
+sound = ExtResource("3_splash")
 
 [node name="Sprite" type="Sprite2D" parent="."]
 texture = ExtResource("2_puddle")

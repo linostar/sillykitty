@@ -13,7 +13,7 @@ var _over := false
 
 @onready var _cat: Cat = %Cat
 @onready var _banner: Label = %Banner
-@onready var _sfx_splash: AudioStreamPlayer = %SfxSplash
+@onready var _sfx_fail: AudioStreamPlayer = %SfxFail
 @onready var _sfx_clear: AudioStreamPlayer = %SfxClear
 
 
@@ -23,8 +23,11 @@ func _ready() -> void:
 	_cat.reached_goal.connect(_on_cat_reached_goal)
 
 
-func _on_cat_failed(reason: String) -> void:
-	_sfx_splash.play()
+func _on_cat_failed(reason: String, sound: AudioStream) -> void:
+	# Hazards guarantee a sound (they report a missing one at load); tests may pass none.
+	if sound != null:
+		_sfx_fail.stream = sound
+		_sfx_fail.play()
 	_finish(false, reason, FAIL_RESTART_DELAY)
 
 

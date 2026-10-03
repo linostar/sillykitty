@@ -3,10 +3,12 @@ extends CharacterBody2D
 ## The AI cat. Every physics tick it scores each option (do nothing, follow the
 ## robot, play with a distraction, walk into its bed) and follows the best one.
 ## The current choice gets a hysteresis bonus so the cat does not flicker.
-## All numbers come from the CatTuning resource.
+## Distractions and beds are only sensed in line of sight, and a target the cat
+## cannot get closer to is given up for a while, so the cat never stays stuck
+## (the player has no restart button). All numbers come from CatTuning.
 
 signal state_changed(new_state: State)
-signal failed(reason: String)
+signal failed(reason: String, sound: AudioStream)
 signal reached_goal
 
 enum State { IDLE, CHASE_ROBOT, DISTRACTED, GO_TO_BED, FAILED, CLEARED }
@@ -16,6 +18,8 @@ const GOAL_GROUP := &"goals"
 ## Diagonal paw pairs move together: back-left with front-right.
 const PAW_PHASES: Array[float] = [0.0, PI, PI, 0.0]
 const WET_TINT := Color("#9fd4ee")
+## Physics layer of walls and furniture; blocks the cat's line of sight.
+const WALL_LAYER_MASK := 1
 
 @export var tuning: CatTuning
 @export var robot: Robot
@@ -33,6 +37,12 @@ var _ear_twitch_in := 0.0
 var _paw_rest: Array[Vector2] = []
 var _ear_rest: Array[float] = []
 var _rng := RandomNumberGenerator.new()
+## Given-up targets: instance id -> seconds left to ignore them. Ids, not
+## references, so a freed target is never dereferenced.
+var _ignored: Dictionary[int, float] = {}
+var _progress_target_id := 0
+var _progress_best := INF
+var _progress_stall := 0.0
 
 @onready var _visual: Node2D = $Visual
 @onready var _body: Sprite2D = $Visual/Body
@@ -61,7 +71,7 @@ func _ready() -> void:
 
 
 ## Called by hazards. Ends the level with a comic fail animation.
-func fall_into(reason: String) -> void:
+func fall_into(reason: String, sound: AudioStream) -> void:
 	if state == State.FAILED or state == State.CLEARED:
 		return
 	if is_instance_valid(_distraction):
@@ -70,7 +80,7 @@ func fall_into(reason: String) -> void:
 	velocity = Vector2.ZERO
 	_set_state(State.FAILED)
 	_splash_fx.restart()
-	failed.emit(reason)
+	failed.emit(reason, sound)
 	_play_fail_animation()
 
 
@@ -97,6 +107,7 @@ func _think(delta: float) -> void:
 		_engage_left = 0.0
 	if not is_instance_valid(_goal):
 		_goal = null
+	_tick_ignored(delta)
 	if state == State.DISTRACTED and _engage_left > 0.0:
 		_engage_left -= delta
 		if _engage_left > 0.0:
@@ -122,7 +133,7 @@ func _think(delta: float) -> void:
 		if distraction == null or not distraction.is_available():
 			continue
 		var distance := global_position.distance_to(distraction.global_position)
-		if distance >= tuning.distraction_sense_radius:
+		if distance >= tuning.distraction_sense_radius or not _can_sense(distraction):
 			continue
 		var score := tuning.distraction_weight * distraction.appeal * (1.0 - distance / tuning.distraction_sense_radius)
 		if distraction == _distraction:
@@ -134,7 +145,8 @@ func _think(delta: float) -> void:
 
 	for node in get_tree().get_nodes_in_group(GOAL_GROUP):
 		var goal := node as Goal
-		if goal == null or global_position.distance_to(goal.global_position) >= tuning.goal_sense_radius:
+		if goal == null or global_position.distance_to(goal.global_position) >= tuning.goal_sense_radius \
+				or not _can_sense(goal):
 			continue
 		if tuning.goal_weight > best_score:
 			best_score = tuning.goal_weight
@@ -144,6 +156,48 @@ func _think(delta: float) -> void:
 	_distraction = best_distraction
 	_goal = best_goal
 	_set_state(best_state)
+	_track_progress(delta)
+
+
+## True when the target is not given up and no wall blocks the straight line to it.
+func _can_sense(target: Node2D) -> bool:
+	if _ignored.has(target.get_instance_id()):
+		return false
+	var query := PhysicsRayQueryParameters2D.create(global_position, target.global_position, WALL_LAYER_MASK)
+	return get_world_2d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func _tick_ignored(delta: float) -> void:
+	for id: int in _ignored.keys():
+		_ignored[id] -= delta
+		if _ignored[id] <= 0.0:
+			_ignored.erase(id)
+
+
+## Gives up on the distraction or bed being approached when the cat has not got
+## closer for give_up_time (e.g. it is pressed against furniture).
+func _track_progress(delta: float) -> void:
+	var target: Node2D = null
+	if state == State.DISTRACTED and _engage_left <= 0.0:
+		target = _distraction
+	elif state == State.GO_TO_BED:
+		target = _goal
+	var target_id := target.get_instance_id() if target != null else 0
+	if target_id != _progress_target_id:
+		_progress_target_id = target_id
+		_progress_best = INF
+		_progress_stall = 0.0
+	if target == null:
+		return
+	var distance := global_position.distance_to(target.global_position)
+	if distance < _progress_best - tuning.min_progress:
+		_progress_best = distance
+		_progress_stall = 0.0
+		return
+	_progress_stall += delta
+	if _progress_stall >= tuning.give_up_time:
+		_ignored[target_id] = tuning.give_up_cooldown
+		_progress_target_id = 0
 
 
 func _bonus(option: State) -> float:

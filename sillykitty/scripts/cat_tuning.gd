@@ -42,3 +42,9 @@ extends Resource
 ## Bonus for the current choice so the cat does not flicker between options.
 @export var hysteresis: float
 @export var meow_cooldown: float
+## Seconds without getting closer to a distraction or bed before the cat gives up on it.
+@export var give_up_time: float
+## Seconds a given-up target is ignored.
+@export var give_up_cooldown: float
+## Pixels the cat must close in on its target to count as progress.
+@export var min_progress: float

@@ -8,7 +8,7 @@ flees threats and naps; lure it to its bed. Plan and acceptance criteria: `.clau
 - The only input actions are `move_left`, `move_right`, `move_up`, `move_down` (arrows, WASD, gamepad d-pad, left stick).
 - Read input only via `Input.get_vector(...)` / `Input.is_action_*` with literal `move_*` names. Never raw keys, mouse, touch or joypad APIs.
 - No buttons or clickable UI. Every `Control` uses `mouse_filter = IGNORE` and `focus_mode = NONE`. Menus are rooms you drive through; restarts are automatic.
-- `tools/check_project.gd` fails validation on: input actions other than `move_*` or overridden `ui_*` actions; raw key/mouse/touch/gesture/joypad or pointer APIs, physics picking and non-`move_*` action reads in any `.gd`, `.tscn` or `.tres` (embedded scripts included); clickable Controls created in code; Controls in scenes that are not `IGNORE`/`NONE`. It is a text and scene scan, not a proof, so still review input code by hand.
+- `tools/check_project.gd` fails validation on: input actions other than `move_*` or overridden `ui_*` actions; raw key/mouse/touch/gesture/joypad or pointer APIs, `_input`/`_unhandled_input` callbacks, any-key checks (`is_anything_pressed`, `is_pressed()`), physics picking and non-`move_*` action reads in any `.gd`, `.tscn` or `.tres` (embedded scripts included); clickable Controls created in code; Controls in scenes that are not `IGNORE`/`NONE`. It is a text and scene scan, not a proof, so still review input code by hand.
 
 ## Layout
 ```
@@ -47,9 +47,10 @@ Gotchas:
 
 ## Gameplay architecture
 - Physics layers: 1 = walls, 2 = robot, 3 (bit value 4) = cat. Robot and cat collide only with walls. Hazards are `Area2D` with `collision_layer = 0`, `collision_mask = 4`, so only the cat triggers them (the robot hovers).
-- Cat brain (`scripts/cat.gd`): each physics tick scores idle, chase robot, each available distraction (group `distractions`) and each bed in range (group `goals`); the current choice gets `hysteresis`. Terminal states `FAILED` / `CLEARED` emit `failed(reason)` / `reached_goal`.
+- Cat brain (`scripts/cat.gd`): each physics tick scores idle, chase robot, each available distraction (group `distractions`) and each bed in range (group `goals`); the current choice gets `hysteresis`. Distractions and beds count only in line of sight (raycast against layer 1), and a distraction or bed the cat cannot get closer to for `give_up_time` is ignored for `give_up_cooldown`. The player has no restart button, so no cat state may be able to last forever. Terminal states `FAILED` / `CLEARED` emit `failed(reason, sound)` / `reached_goal`.
+- Each `Hazard` exports its fail `reason` text and `sound`; the level plays that sound.
 - `Level` (`scripts/level.gd`) listens to the cat, shows the banner and restarts via `reload_current_scene()` (1.6 s after a fail, 2.5 s after a clear). No input is needed to continue.
-- Levels: `RoomFloor` draws the floor; border `Wall`s go under `Room`; furniture `Wall`s, the robot and the cat go under the y-sorted `Actors` node. `Wall` origin is the bottom-centre of its footprint.
+- Levels: `RoomFloor` draws the floor; border `Wall`s go under `Room`; furniture `Wall`s, the robot and the cat go under the y-sorted `Actors` node. `Wall` origin is the bottom-centre of its footprint. `Wall` and `RoomFloor` are `@tool` scripts, so levels can be laid out visually in the editor.
 - Positions of the robot, cat and props are their feet; visuals are drawn upward from there.
 
 ## GDScript conventions
@@ -84,9 +85,10 @@ Gotchas:
 | water | `#6EC1E4` | puddle hazard |
 | water_light | `#A8DDF2` | puddle ripples |
 | danger | `#E8574A` | hazard highlight |
-| goal | `#B98AE0` | cat bed rim, sofa top |
+| goal | `#B98AE0` | cat bed rim (reserved for the goal) |
 | goal_light | `#D7B8F0` | cat bed cushion |
-| sofa_front | `#946BB8` | sofa front face |
+| sofa_top | `#8FBF8A` | sofa footprint |
+| sofa_front | `#6E9E69` | sofa front face |
 | yarn_dark | `#C94848` | yarn strands (ball uses accent_red) |
 | sunbeam | `#FFF2A8` | distraction light |
 | highlight | `#FFFFFF` | eye glints, specular highlights (with opacity) |

@@ -16,6 +16,8 @@ const AUDIO_RELEASE_MSEC := 500
 
 ## Real-time limit for the whole run; a test stuck on an await fails instead of hanging.
 const WATCHDOG_MSEC := 120000
+## Frames before/after the restart deadline at which "not yet" / "already" are asserted.
+const RESTART_MARGIN_FRAMES := 12
 
 var _failures: Array[String] = []
 var _passed := 0
@@ -42,8 +44,11 @@ func _run() -> void:
 	await _test_hazard_fails_cat()
 	await _test_robot_crosses_hazard_unharmed()
 	await _test_cat_recovers_when_distraction_removed()
+	await _test_cat_ignores_target_behind_wall()
+	await _test_cat_gives_up_unreachable_target()
 	await _test_cat_walks_into_nearby_bed()
 	await _test_level_restarts_after_fail()
+	await _test_level_restarts_after_clear()
 	# The audio thread releases freed sound playbacks in real time, and --fixed-fps
 	# frames take almost no real time; quitting too early reports them as leaks.
 	var release_deadline := Time.get_ticks_msec() + AUDIO_RELEASE_MSEC
@@ -109,8 +114,8 @@ func _test_hazard_fails_cat() -> void:
 	var cat := arena.get_node("Cat") as Cat
 	_add(arena, PUDDLE_SCENE, Vector2(380, 300))
 	var reasons: Array[String] = []
-	cat.failed.connect(func(reason: String) -> void: reasons.append(reason))
-	# The robot flies straight across the puddle and on; the cat follows into it.
+	cat.failed.connect(func(reason: String, _sound: AudioStream) -> void: reasons.append(reason))
+	# The robot darts left over the puddle and back; the cat, following it, walks into the water.
 	Input.action_press("move_left")
 	await _frames(40)
 	Input.action_release("move_left")
@@ -130,7 +135,7 @@ func _test_robot_crosses_hazard_unharmed() -> void:
 	var bot := arena.get_node("Robot") as Robot
 	var puddle := _add(arena, PUDDLE_SCENE, Vector2(400, 300)) as Hazard
 	var reasons: Array[String] = []
-	cat.failed.connect(func(reason: String) -> void: reasons.append(reason))
+	cat.failed.connect(func(reason: String, _sound: AudioStream) -> void: reasons.append(reason))
 	var robot_detected := false
 	Input.action_press("move_right")
 	for i in 90:
@@ -167,25 +172,82 @@ func _test_cat_walks_into_nearby_bed() -> void:
 	await _dispose(arena)
 
 
+func _test_cat_ignores_target_behind_wall() -> void:
+	# Without the wall the yarn (120 px) would beat the robot (150 px); the wall hides it.
+	var arena := _arena(Vector2(250, 150), Vector2(250, 300))
+	var cat := arena.get_node("Cat") as Cat
+	_add_wall(arena, Vector2(250, 360), Vector2(300, 20))
+	_add(arena, YARN_SCENE, Vector2(250, 420))
+	await _frames(60)
+	_check(cat.state == Cat.State.CHASE_ROBOT, "cat_ignores_target_behind_wall",
+		"state=%s" % Cat.State.keys()[cat.state])
+	await _dispose(arena)
+
+
+func _test_cat_gives_up_unreachable_target() -> void:
+	# A 10 px gap: the line of sight passes, the 18 px cat cannot.
+	var arena := _arena(Vector2(250, 150), Vector2(250, 300))
+	var cat := arena.get_node("Cat") as Cat
+	_add_wall(arena, Vector2(172.5, 360), Vector2(145, 20))
+	_add_wall(arena, Vector2(327.5, 360), Vector2(145, 20))
+	_add(arena, YARN_SCENE, Vector2(250, 420))
+	await _frames(FPS)
+	var was_stuck := cat.state == Cat.State.DISTRACTED and cat.position.y < 345.0
+	await _frames(int((cat.tuning.give_up_time + 1.0) * FPS))
+	_check(was_stuck and cat.state == Cat.State.CHASE_ROBOT, "cat_gives_up_unreachable_target",
+		"was_stuck=%s state=%s" % [was_stuck, Cat.State.keys()[cat.state]])
+	await _dispose(arena)
+
+
 func _test_level_restarts_after_fail() -> void:
+	var trigger := func(level: Level) -> void:
+		(level.get_node("%Cat") as Cat).fall_into("test hazard", null)
+	await _check_level_restart("level_restarts_after_fail", Level.FAIL_RESTART_DELAY, trigger)
+
+
+func _test_level_restarts_after_clear() -> void:
+	var trigger := func(level: Level) -> void:
+		var cat := level.get_node("%Cat") as Cat
+		cat.global_position = (level.get_node("Bed") as Node2D).global_position + Vector2(-40, 0)
+	await _check_level_restart("level_restarts_after_clear", Level.CLEAR_RESTART_DELAY, trigger)
+
+
+## Loads the real level, triggers an outcome and asserts: the banner shows, the
+## level is still there just before its restart delay and replaced just after.
+func _check_level_restart(test_name: String, delay: float, trigger: Callable) -> void:
 	var packed := load(LEVEL_PATH) as PackedScene
 	if packed == null:
-		_check(false, "level_restarts_after_fail", "cannot load " + LEVEL_PATH)
+		_check(false, test_name, "cannot load " + LEVEL_PATH)
 		return
 	var level := packed.instantiate() as Level
 	root.add_child(level)
 	current_scene = level
+	var outcomes: Array[bool] = []
+	level.finished.connect(func(cleared: bool) -> void: outcomes.append(cleared))
 	await _frames(10)
-	var cat := level.get_node("%Cat") as Cat
-	cat.fall_into("test hazard")
-	# The plan requires an automatic restart within 2 seconds of failing.
-	await _frames(2 * FPS)
+	trigger.call(level)
+	var waited := 0
+	while outcomes.is_empty() and waited < 5 * FPS:
+		await physics_frame
+		waited += 1
+	var banner_shown := (level.get_node("%Banner") as Label).visible if not outcomes.is_empty() else false
+	await _frames(int(delay * FPS) - RESTART_MARGIN_FRAMES)
+	var restarted_early := current_scene != level
+	await _frames(2 * RESTART_MARGIN_FRAMES)
 	var restarted := current_scene != null and current_scene != level and current_scene.scene_file_path == LEVEL_PATH
-	_check(restarted, "level_restarts_after_fail", "current scene was not replaced within 2s")
+	_check(outcomes.size() == 1 and banner_shown and not restarted_early and restarted, test_name,
+		"outcomes=%s banner_shown=%s restarted_early=%s restarted=%s" % [outcomes, banner_shown, restarted_early, restarted])
 	if current_scene != null:
 		current_scene.queue_free()
 		current_scene = null
 	await _frames(2)
+
+
+func _add_wall(arena: Node2D, bottom_centre: Vector2, size: Vector2) -> void:
+	var wall := Wall.new()
+	wall.size = size
+	wall.position = bottom_centre
+	arena.add_child(wall)
 
 
 func _arena(robot_position: Vector2, cat_position: Vector2) -> Node2D:

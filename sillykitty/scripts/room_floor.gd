@@ -1,6 +1,7 @@
+@tool
 class_name RoomFloor
 extends Node2D
-## Draws the wooden floor boards of a 1280x720 room.
+## Draws the wooden floor boards of a 1280x720 room (also in the editor).
 
 const SIZE := Vector2(1280.0, 720.0)
 const BOARD_HEIGHT := 48.0

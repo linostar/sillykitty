@@ -1,18 +1,32 @@
+@tool
 class_name Wall
 extends StaticBody2D
 ## Room wall or furniture block. The origin is the bottom-centre of the
 ## footprint so walls placed under a y-sorted node sort correctly with actors.
 ## Only the footprint collides; the front face below it is decoration.
+## Runs in the editor so levels can be laid out visually.
 
 const FRONT_HEIGHT := 18.0
 const INK := Color("#3B2C35")
 
-@export var size := Vector2(128.0, 64.0)
-@export var top_color := Color("#C99C74")
-@export var front_color := Color("#A77B5A")
+@export var size := Vector2(128.0, 64.0):
+	set(value):
+		size = value
+		queue_redraw()
+@export var top_color := Color("#C99C74"):
+	set(value):
+		top_color = value
+		queue_redraw()
+@export var front_color := Color("#A77B5A"):
+	set(value):
+		front_color = value
+		queue_redraw()
 
 
 func _ready() -> void:
+	# Collision is built at runtime only, so the editor never saves a generated child.
+	if Engine.is_editor_hint():
+		return
 	var shape := RectangleShape2D.new()
 	shape.size = size
 	var collision := CollisionShape2D.new()
