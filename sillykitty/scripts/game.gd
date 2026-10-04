@@ -28,6 +28,11 @@ const END_ROOM_PATH := "res://scenes/end_room.tscn"
 const END_ROOM_TIME := 7.0
 const END_TEXT := "You did it! Every kitty is home."
 const FADE_TIME := 0.35
+## Rooms are drawn at this scale, centred and resting on the bottom of the
+## screen. Sprites rise up to ~141 px above their feet (the cat's bubble), so at
+## full scale an actor by the top wall would draw off screen and under the HUD;
+## the band this frees above the room keeps them visible.
+const ROOM_SCALE := 0.87
 
 ## Music for the title and end rooms, and for every level.
 @export var title_music: AudioStream
@@ -55,6 +60,11 @@ var _transitioning := false
 func _ready() -> void:
 	if title_music == null or level_music == null:
 		push_error("[Game] title_music and level_music must both be assigned in game.tscn")
+	# Applies to every scene's world (not to CanvasLayers such as the HUD) and
+	# survives scene changes, so it is set once here.
+	var screen := RoomFloor.SIZE
+	get_viewport().canvas_transform = Transform2D(0.0, Vector2(ROOM_SCALE, ROOM_SCALE), 0.0,
+		Vector2(screen.x * (1.0 - ROOM_SCALE) / 2.0, screen.y * (1.0 - ROOM_SCALE)))
 	load_progress()
 
 
