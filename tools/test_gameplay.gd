@@ -735,8 +735,10 @@ func _test_title_room_starts_on_movement() -> void:
 	var level_music := _game.music_playing() == _game.level_music
 	await _frames(int(_game.FADE_TIME * FPS) + 2)
 	var faded_in := is_zero_approx(_game.curtain_alpha())
-	# The scaled room view survives scene changes.
-	var scaled := is_equal_approx(root.canvas_transform.get_scale().x, GameState.ROOM_SCALE)
+	# The scaled room view survives scene changes and still rests on the screen bottom.
+	var view := root.canvas_transform
+	var scaled := is_equal_approx(view.get_scale().x, GameState.ROOM_SCALE) \
+		and view.origin.is_equal_approx(Vector2(640.0, 720.0) * (1.0 - GameState.ROOM_SCALE))
 	_check(waiting and started and level_music and faded_in and scaled, "title_room_starts_on_movement",
 		"waiting=%s (tagline '%s') started=%s level_music=%s faded_in=%s scaled=%s" % [waiting, tagline, started,
 		level_music, faded_in, scaled])

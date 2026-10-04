@@ -62,9 +62,7 @@ func _ready() -> void:
 		push_error("[Game] title_music and level_music must both be assigned in game.tscn")
 	# Applies to every scene's world (not to CanvasLayers such as the HUD) and
 	# survives scene changes, so it is set once here.
-	var screen := RoomFloor.SIZE
-	get_viewport().canvas_transform = Transform2D(0.0, Vector2(ROOM_SCALE, ROOM_SCALE), 0.0,
-		Vector2(screen.x * (1.0 - ROOM_SCALE) / 2.0, screen.y * (1.0 - ROOM_SCALE)))
+	get_viewport().canvas_transform = Transform2D(0.0, Vector2(ROOM_SCALE, ROOM_SCALE), 0.0, room_origin())
 	load_progress()
 
 
@@ -78,6 +76,13 @@ func start_game() -> void:
 func enter_room(room_name: String) -> void:
 	print("[Game] Entered the %s" % room_name)
 	_play(title_music)
+
+
+## Screen position of the room's top-left corner: centred horizontally and
+## resting on the bottom of the (base-resolution) screen.
+func room_origin() -> Vector2:
+	var screen := get_viewport().get_visible_rect().size
+	return Vector2(screen.x * (1.0 - ROOM_SCALE) / 2.0, screen.y * (1.0 - ROOM_SCALE))
 
 
 ## Total stars earned over all levels and the most there are.
