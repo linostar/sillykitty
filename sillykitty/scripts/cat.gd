@@ -69,6 +69,9 @@ var _anim_time := 0.0
 var _walk_phase := 0.0
 var _turn := Turn.new()
 var _ear_twitch_in := 0.0
+## The one tween animating the ears during play (twitches, coming back up
+## after fleeing); killed when the level ends so the end animations own them.
+var _ear_tween: Tween
 var _paw_rest: Array[Vector2] = []
 var _ear_rest: Array[float] = []
 var _rng := RandomNumberGenerator.new()
@@ -347,6 +350,15 @@ func _set_state(new_state: State) -> void:
 		_shadow.scale = _shadow_rest
 		_head.position = _head_rest
 		_head.scale = Vector2.ONE
+		# Ears start the end animations from rest, wherever a twitch or their
+		# return after fleeing had got to.
+		if _ear_tween != null:
+			_ear_tween.kill()
+		for i in _ears.size():
+			_ears[i].rotation = _ear_rest[i]
+	elif new_state == State.FLEE and _ear_tween != null:
+		# Fleeing pins the ears every frame; nothing may animate them meanwhile.
+		_ear_tween.kill()
 	_bubble.show_state(new_state)
 	state_changed.emit(new_state)
 	if new_state == State.CHASE_ROBOT and previous == State.IDLE and _meow_cooldown_left <= 0.0:
@@ -358,7 +370,7 @@ func _set_state(new_state: State) -> void:
 	# Ears come back up after fleeing, unless the level ended (its fright
 	# animation pins them).
 	if previous == State.FLEE and not is_over():
-		var tween := create_tween().set_parallel(true)
+		var tween := _new_ear_tween().set_parallel(true)
 		for i in _ears.size():
 			tween.tween_property(_ears[i], "rotation", _ear_rest[i], 0.25)
 
@@ -499,7 +511,10 @@ func _process(delta: float) -> void:
 		_animate_play()
 	else:
 		_animate_sit(delta)
-	if not engaged:
+	if engaged:
+		# Playing owns the cat's height, so no hop is shown.
+		hop = 0.0
+	else:
 		_visual.position.y = -hop
 	_shadow.scale = _shadow_rest * (1.0 - Turn.SHADOW_SHRINK * hop / Turn.HOP)
 	if state == State.FLEE:
@@ -553,10 +568,20 @@ func _animate_sit(delta: float) -> void:
 
 func _update_ear_twitch(delta: float) -> void:
 	_ear_twitch_in -= delta
-	if _ear_twitch_in > 0.0:
+	# A twitch due while the ears are still coming back up after fleeing waits
+	# for them, so both ears get back to rest.
+	if _ear_twitch_in > 0.0 or (_ear_tween != null and _ear_tween.is_running()):
 		return
 	_ear_twitch_in = _rng.randf_range(1.5, 4.0)
 	var index := _rng.randi_range(0, _ears.size() - 1)
-	var tween := create_tween()
+	var tween := _new_ear_tween()
 	tween.tween_property(_ears[index], "rotation", _ear_rest[index] + 0.35, 0.06)
 	tween.tween_property(_ears[index], "rotation", _ear_rest[index], 0.12)
+
+
+## Replaces the play-time ear tween (see _ear_tween).
+func _new_ear_tween() -> Tween:
+	if _ear_tween != null:
+		_ear_tween.kill()
+	_ear_tween = create_tween()
+	return _ear_tween

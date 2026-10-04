@@ -95,6 +95,7 @@ func _run() -> void:
 	await _test_cat_turns_round_with_a_hop()
 	await _test_dog_turns_round_like_the_cat()
 	await _test_fail_animations_do_not_spin()
+	await _test_ears_settle_after_fleeing()
 	await _test_cat_does_not_turn_on_small_sideways_moves()
 	await _test_cat_lands_when_level_ends_mid_turn()
 	await _test_cat_ignores_distant_robot()
@@ -194,7 +195,7 @@ func _test_cat_turns_round_with_a_hop() -> void:
 	var head_rest := head.position
 	bot.position = Vector2(cat.position.x - 150.0, 300)
 	var turn := await _watch_turn(visual, head, shadow, 60)
-	var turned := is_equal_approx(visual.scale.x, -1.0) and is_zero_approx(visual.position.y) \
+	var turned := is_equal_approx(visual.scale.x, -1.0) and visual.position.y == 0.0 \
 		and shadow.scale.is_equal_approx(shadow_rest) and head.position.is_equal_approx(head_rest) and head.scale.x == 1.0
 	_check(facing_right and turned and turn.hop > Turn.HOP * 0.8 and turn.narrowest == 1.0 and turn.head_swung
 		and turn.head_flipped and turn.smallest_shadow < 1.0 - Turn.SHADOW_SHRINK * 0.8,
@@ -250,8 +251,9 @@ func _watch_turn(visual: Node2D, head: Node2D, shadow: Node2D, frames: int) -> D
 func _test_fail_animations_do_not_spin() -> void:
 	var results: Array[String] = []
 	var ok := true
-	# Soaked; scared; scared while fleeing (the usual way to be caught).
-	for case in 3:
+	# Soaked; scared; scared while fleeing (the usual way to be caught); scared
+	# just after the cat stopped fleeing, while its ears are still coming back up.
+	for case in 4:
 		var wet := case == 0
 		var arena := _arena(Vector2(900, 2000), Vector2(300, 300))
 		var cat := arena.get_node("Cat") as Cat
@@ -260,13 +262,21 @@ func _test_fail_animations_do_not_spin() -> void:
 		var ear_rest: Array[float] = [ears[0].rotation, ears[1].rotation]
 		await _frames(5)
 		var fleeing := false
-		if case == 2:
-			_add_vacuum(arena, Vector2(420, 300), PackedVector2Array([Vector2(420, 300)]))
+		if case >= 2:
+			var vacuum := _add_vacuum(arena, Vector2(420, 300), PackedVector2Array([Vector2(420, 300)]))
 			for i in 30:
 				await physics_frame
 				fleeing = cat.state == Cat.State.FLEE
 				if fleeing:
 					break
+			if case == 3:
+				vacuum.queue_free()
+				for i in 2 * FPS:
+					await physics_frame
+					if cat.state != Cat.State.FLEE:
+						break
+				fleeing = fleeing and cat.state != Cat.State.FLEE
+				await _frames(3)
 		cat.fall_into("test", null, wet)
 		var turn := 0.0
 		var narrowest := INF
@@ -279,11 +289,51 @@ func _test_fail_animations_do_not_spin() -> void:
 		var settled := is_zero_approx(visual.rotation) and visual.position.is_zero_approx()
 		var pinned := is_equal_approx(ears[0].rotation, ear_rest[0] * 3.0) and is_equal_approx(ears[1].rotation, ear_rest[1] * 3.0)
 		ok = ok and turn <= Cat.SHAKE_ANGLE + 0.001 and narrowest >= 0.9 and leapt > 40.0 and settled and pinned \
-			and (fleeing or case != 2)
+			and (fleeing or case < 2)
 		results.append("case %d (wet=%s, fled first=%s): max rotation %.2f, narrowest %.2f, leap %.0f, settled %s, ears pinned %s"
 			% [case, wet, fleeing, turn, narrowest, leapt, settled, pinned])
 		await _dispose(arena)
 	_check(ok, "fail_animations_do_not_spin", "; ".join(results))
+
+
+## After fleeing, both ears come back to rest even when a twitch falls due at
+## once (its timer is frozen while the cat flees), and a level that ends while
+## they are coming back up (here a nap) leaves them at rest too.
+func _test_ears_settle_after_fleeing() -> void:
+	var results: Array[String] = []
+	var ok := true
+	for ends_in_nap: bool in [false, true]:
+		var arena := _arena(Vector2(900, 2000), Vector2(300, 300))
+		var cat := arena.get_node("Cat") as Cat
+		var bot := arena.get_node("Robot") as Robot
+		var ears: Array[Node2D] = [cat.get_node("Visual/Head/EarBack"), cat.get_node("Visual/Head/EarFront")]
+		var ear_rest: Array[float] = [ears[0].rotation, ears[1].rotation]
+		var vacuum := _add_vacuum(arena, Vector2(420, 300), PackedVector2Array([Vector2(420, 300)]))
+		for i in 30:
+			await physics_frame
+			if cat.state == Cat.State.FLEE:
+				break
+		var fled := cat.state == Cat.State.FLEE
+		# Test hook: the twitch timer is private; make a twitch due the moment fleeing ends.
+		cat.set("_ear_twitch_in", 0.0)
+		vacuum.queue_free()
+		for i in 2 * FPS:
+			await physics_frame
+			if cat.state != Cat.State.FLEE:
+				break
+		var stopped := cat.state != Cat.State.FLEE and not cat.is_over()
+		if ends_in_nap:
+			await _frames(3)
+			bot.has_moved = true
+			cat.nap = 0.999
+			await _frames(2)
+		await _frames(FPS)
+		var at_rest := is_equal_approx(ears[0].rotation, ear_rest[0]) and is_equal_approx(ears[1].rotation, ear_rest[1])
+		ok = ok and fled and stopped and at_rest and (cat.state == Cat.State.NAP) == ends_in_nap
+		results.append("nap=%s: fled=%s stopped=%s state=%s ears %.2f, %.2f (rest %.2f, %.2f)" % [ends_in_nap, fled, stopped,
+			Cat.State.keys()[cat.state], ears[0].rotation, ears[1].rotation, ear_rest[0], ear_rest[1]])
+		await _dispose(arena)
+	_check(ok, "ears_settle_after_fleeing", "; ".join(results))
 
 
 ## A cat walking almost straight down (sideways speed under Turn.MIN_SPEED)

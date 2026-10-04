@@ -46,7 +46,8 @@ func advance(delta: float) -> void:
 		return
 	_left = maxf(0.0, _left - delta)
 	var progress := 1.0 - _left / TIME
-	lift = sin(progress * PI)
+	# Exactly on the ground once the turn is over (sin(PI) is not quite 0).
+	lift = sin(progress * PI) if turning() else 0.0
 	if progress < 0.5:
 		head_shift = smoothstep(0.0, 0.5, progress)
 	else:
