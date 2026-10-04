@@ -83,6 +83,8 @@ func _process(delta: float) -> void:
 
 
 func _on_robot_started_moving() -> void:
+	# The intro card never covers the room while the clock runs.
+	_hud.hide_intro()
 	if not _over:
 		clock_running = true
 

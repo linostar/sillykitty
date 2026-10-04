@@ -178,9 +178,11 @@ func _on_level_finished(cleared: bool, stars: int) -> void:
 	_go_to(next_index(index, cleared))
 
 
+## Clearing the last level sends the player back to level 1 (via the end room),
+## so the furthest level then resets to 1 as well: a reload resumes there too.
 func _record_clear(index: int, stars: int) -> void:
 	best_stars[index] = maxi(best_stars[index], stars)
-	furthest_index = maxi(furthest_index, mini(index + 1, level_paths.size() - 1))
+	furthest_index = 0 if index == level_paths.size() - 1 else maxi(furthest_index, index + 1)
 	print("[Game] Level %d cleared with %d star(s)" % [index + 1, stars])
 	save_progress()
 

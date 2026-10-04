@@ -17,9 +17,12 @@ const START_DELAY := 0.6
 func _ready() -> void:
 	_tagline.text = RESTRICTION_TEXT
 	var stars := _game.star_total()
-	if _game.furthest_index > 0 or stars.x > 0:
-		_progress.text = "Continue at level %d of %d  -  %d of %d stars" % [_game.furthest_index + 1, _game.level_count(),
+	if _game.furthest_index > 0:
+		_progress.text = "Continue at level %d of %d \u2013 %d of %d stars" % [_game.furthest_index + 1, _game.level_count(),
 			stars.x, stars.y]
+	elif stars.x > 0:
+		# Back at level 1 with stars earned: every level has been cleared.
+		_progress.text = "Every kitty is home! %d of %d stars. Play again?" % [stars.x, stars.y]
 	else:
 		_progress.text = "%d levels. Lead the kitty to its bed!" % _game.level_count()
 	_robot.started_moving.connect(_on_robot_started_moving)

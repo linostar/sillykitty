@@ -621,16 +621,19 @@ func _test_corrupt_save_is_replaced() -> void:
 
 
 func _test_clock_starts_on_first_movement() -> void:
+	_game.retrying = false
 	var level := await _load_level(-1.0)
-	await _frames(FPS)
-	var idle_ok := not level.clock_running and is_equal_approx(level.time_left, level.time_limit)
+	var hud := level.get_node("%Hud") as Hud
+	await _frames(int(0.5 * FPS))
+	var idle_ok := not level.clock_running and is_equal_approx(level.time_left, level.time_limit) and hud.intro_shown()
 	Input.action_press("move_up")
 	await _frames(1)
 	Input.action_release("move_up")
+	var intro_gone := not hud.intro_shown()
 	await _frames(FPS)
 	var elapsed := level.time_limit - level.time_left
-	_check(idle_ok and level.clock_running and elapsed > 0.9 and elapsed < 1.1, "clock_starts_on_first_movement",
-		"idle_ok=%s running=%s elapsed=%.2f" % [idle_ok, level.clock_running, elapsed])
+	_check(idle_ok and intro_gone and level.clock_running and elapsed > 0.9 and elapsed < 1.1, "clock_starts_on_first_movement",
+		"idle_ok=%s intro_gone=%s running=%s elapsed=%.2f" % [idle_ok, intro_gone, level.clock_running, elapsed])
 	await _unload_level()
 
 
@@ -778,6 +781,8 @@ func _test_level_routes() -> void:
 			"stars=%d (-1 = not cleared) used=%.2f s of %.1f banner='%s' next_loaded=%s cat_at=%s" % [stars, used, limit,
 			banner, loaded, cat_at])
 		if last:
+			_check(_game.furthest_index == 0 and _game.star_total().x == 3 * count, "full_clear_resumes_at_level_1",
+				"furthest=%d stars=%s" % [_game.furthest_index, _game.star_total()])
 			await _check_end_room()
 		await _unload_level()
 		if stars > 0:

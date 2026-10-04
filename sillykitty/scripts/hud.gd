@@ -100,6 +100,11 @@ func show_banner(text: String, stars: int = -1) -> void:
 		tween.tween_property(star, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
+## Hides the intro card at once (the player has started moving).
+func hide_intro() -> void:
+	_intro.hide()
+
+
 func intro_shown() -> bool:
 	return _intro.visible
 
