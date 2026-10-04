@@ -1,0 +1,114 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/end_room.gd" id="1_end"]
+[ext_resource type="Script" path="res://scripts/room_floor.gd" id="2_floor"]
+[ext_resource type="Script" path="res://scripts/wall.gd" id="3_wall"]
+[ext_resource type="PackedScene" path="res://scenes/bed.tscn" id="4_bed"]
+[ext_resource type="PackedScene" path="res://scenes/robot.tscn" id="5_robot"]
+[ext_resource type="PackedScene" path="res://scenes/cat.tscn" id="6_cat"]
+[ext_resource type="PackedScene" path="res://scenes/confetti.tscn" id="7_confetti"]
+
+[node name="EndRoom" type="Node2D"]
+script = ExtResource("1_end")
+
+[node name="Floor" type="Node2D" parent="."]
+script = ExtResource("2_floor")
+
+[node name="Bed" parent="." instance=ExtResource("4_bed")]
+position = Vector2(640, 450)
+
+[node name="Room" type="Node2D" parent="."]
+
+[node name="WallTop" type="StaticBody2D" parent="Room"]
+position = Vector2(640, 32)
+script = ExtResource("3_wall")
+size = Vector2(1280, 32)
+
+[node name="WallLeft" type="StaticBody2D" parent="Room"]
+position = Vector2(16, 688)
+script = ExtResource("3_wall")
+size = Vector2(32, 656)
+
+[node name="WallRight" type="StaticBody2D" parent="Room"]
+position = Vector2(1264, 688)
+script = ExtResource("3_wall")
+size = Vector2(32, 656)
+
+[node name="WallBottom" type="StaticBody2D" parent="Room"]
+position = Vector2(640, 720)
+script = ExtResource("3_wall")
+size = Vector2(1280, 32)
+
+[node name="Actors" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Robot" parent="Actors" instance=ExtResource("5_robot")]
+position = Vector2(800, 430)
+
+[node name="Cat" parent="Actors" node_paths=PackedStringArray("robot") instance=ExtResource("6_cat")]
+position = Vector2(640, 450)
+robot = NodePath("../Robot")
+
+[node name="Ui" type="CanvasLayer" parent="."]
+
+[node name="Headline" type="Label" parent="Ui"]
+unique_name_in_owner = true
+offset_top = 80.0
+offset_right = 1280.0
+offset_bottom = 170.0
+theme_override_colors/font_color = Color(0.949, 0.62, 0.298, 1)
+theme_override_colors/font_outline_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_constants/outline_size = 14
+theme_override_font_sizes/font_size = 60
+text = "Headline"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="StarTotal" type="Label" parent="Ui"]
+unique_name_in_owner = true
+offset_top = 172.0
+offset_right = 1280.0
+offset_bottom = 222.0
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_font_sizes/font_size = 36
+text = "Stars"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Thanks" type="Label" parent="Ui"]
+offset_top = 224.0
+offset_right = 1280.0
+offset_bottom = 264.0
+theme_override_colors/font_color = Color(0.373, 0.663, 0.761, 1)
+theme_override_font_sizes/font_size = 26
+text = "Thanks for playing! Back to level 1 in a moment..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Credits" type="Label" parent="Ui"]
+offset_top = 590.0
+offset_right = 1280.0
+offset_bottom = 620.0
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_font_sizes/font_size = 20
+text = "Made for Jamference: AI Game Jam Hack 1. Code, art, sound and music by a human with Claude."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FontCredit" type="Label" parent="Ui"]
+offset_top = 620.0
+offset_right = 1280.0
+offset_bottom = 650.0
+theme_override_colors/font_color = Color(0.373, 0.663, 0.761, 1)
+theme_override_font_sizes/font_size = 18
+text = "Font: Fredoka by the Fredoka Project Authors (SIL Open Font License 1.1)"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Confetti" parent="Ui" instance=ExtResource("7_confetti")]
+unique_name_in_owner = true
+position = Vector2(640, -20)
+amount = 60
+lifetime = 4.0
+one_shot = false
+explosiveness = 0.0

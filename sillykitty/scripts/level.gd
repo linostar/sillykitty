@@ -17,6 +17,10 @@ const WARNING_FRACTION := 0.4
 ## run at that pace always leaves 20% and earns 3 stars.
 const THREE_STAR_FRACTION := 0.2
 const TWO_STAR_FRACTION := 0.1
+## Screen shake on a fail: peak offset in pixels, duration and number of jolts.
+const SHAKE_STRENGTH := 12.0
+const SHAKE_TIME := 0.45
+const SHAKE_STEPS := 9
 
 @export var time_limit := 60.0
 @export_multiline var hint := "Lead the kitty to its bed!"
@@ -26,6 +30,7 @@ var clock_running := false
 
 var _over := false
 var _warning := 0.0
+var _rng := RandomNumberGenerator.new()
 
 @onready var _game := get_node(GameState.AUTOLOAD_PATH) as GameState
 @onready var _robot: Robot = %Robot
@@ -56,15 +61,12 @@ func _ready() -> void:
 	_hud.set_level(number, _game.level_count())
 	_hud.set_hint(hint)
 	_hud.set_time(time_left, false)
+	if not _game.retrying:
+		_hud.show_intro(number, hint)
 	_robot.started_moving.connect(_on_robot_started_moving)
 	_cat.failed.connect(_on_cat_failed)
 	_cat.reached_goal.connect(_on_cat_reached_goal)
 	_game.attach_level(self)
-
-
-## Used by Game for the end-of-game banner.
-func show_banner(text: String) -> void:
-	_hud.show_banner(text)
 
 
 func _process(delta: float) -> void:
@@ -90,6 +92,7 @@ func _on_cat_failed(reason: String, sound: AudioStream) -> void:
 	if sound != null:
 		_sfx_fail.stream = sound
 		_sfx_fail.play()
+	_shake()
 	_finish(false, reason, -1)
 
 
@@ -105,3 +108,13 @@ func _finish(cleared: bool, text: String, stars: int) -> void:
 	clock_running = false
 	_hud.show_banner(text, stars)
 	finished.emit(cleared, stars)
+
+
+## Jolts the whole room (not the HUD, which is a CanvasLayer) and settles it back.
+func _shake() -> void:
+	var tween := create_tween()
+	for i in SHAKE_STEPS:
+		var strength := SHAKE_STRENGTH * (1.0 - float(i) / SHAKE_STEPS)
+		var offset := Vector2(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0)) * strength
+		tween.tween_property(self, "position", offset, SHAKE_TIME / SHAKE_STEPS)
+	tween.tween_property(self, "position", Vector2.ZERO, SHAKE_TIME / SHAKE_STEPS)

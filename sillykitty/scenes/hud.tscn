@@ -4,6 +4,27 @@
 [ext_resource type="Texture2D" path="res://art/star.svg" id="2_star"]
 [ext_resource type="AudioStream" path="res://audio/sfx/tick.wav" id="3_tick"]
 [ext_resource type="AudioStream" path="res://audio/sfx/timeup.wav" id="4_timeup"]
+[ext_resource type="PackedScene" path="res://scenes/confetti.tscn" id="5_confetti"]
+[ext_resource type="AudioStream" path="res://audio/sfx/star.wav" id="6_star"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_banner"]
+content_margin_left = 36.0
+content_margin_top = 18.0
+content_margin_right = 36.0
+content_margin_bottom = 18.0
+bg_color = Color(1, 0.98, 0.94, 0.94)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.231, 0.173, 0.208, 1)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+shadow_color = Color(0.231, 0.173, 0.208, 0.25)
+shadow_size = 8
+shadow_offset = Vector2(0, 6)
 
 [node name="Hud" type="CanvasLayer"]
 script = ExtResource("1_hud")
@@ -44,43 +65,106 @@ text = "0:00"
 horizontal_alignment = 2
 vertical_alignment = 1
 
-[node name="Banner" type="Label" parent="."]
+[node name="Intro" type="VBoxContainer" parent="."]
 unique_name_in_owner = true
-offset_top = 290.0
-offset_right = 1280.0
-offset_bottom = 390.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -500.0
+offset_top = -110.0
+offset_right = 500.0
+offset_bottom = 30.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+alignment = 1
+
+[node name="IntroTitle" type="Label" parent="Intro"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.949, 0.62, 0.298, 1)
+theme_override_colors/font_outline_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_constants/outline_size = 16
+theme_override_font_sizes/font_size = 72
+text = "Level 1"
+horizontal_alignment = 1
+
+[node name="IntroHint" type="Label" parent="Intro"]
+unique_name_in_owner = true
+layout_mode = 2
 theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
 theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
-theme_override_constants/outline_size = 14
-theme_override_font_sizes/font_size = 56
+theme_override_constants/outline_size = 10
+theme_override_font_sizes/font_size = 30
+text = "Hint"
+horizontal_alignment = 1
+
+[node name="BannerPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -80.0
+offset_right = 300.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_banner")
+
+[node name="Layout" type="VBoxContainer" parent="BannerPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Banner" type="Label" parent="BannerPanel/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_font_sizes/font_size = 48
 text = "Banner"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Stars" type="HBoxContainer" parent="."]
+[node name="Stars" type="HBoxContainer" parent="BannerPanel/Layout"]
 unique_name_in_owner = true
-offset_left = 540.0
-offset_top = 392.0
-offset_right = 740.0
-offset_bottom = 442.0
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 12
 alignment = 1
 
-[node name="Star1" type="TextureRect" parent="Stars"]
+[node name="Star1" type="TextureRect" parent="BannerPanel/Layout/Stars"]
+layout_mode = 2
 mouse_filter = 2
 texture = ExtResource("2_star")
 stretch_mode = 5
 
-[node name="Star2" type="TextureRect" parent="Stars"]
+[node name="Star2" type="TextureRect" parent="BannerPanel/Layout/Stars"]
+layout_mode = 2
 mouse_filter = 2
 texture = ExtResource("2_star")
 stretch_mode = 5
 
-[node name="Star3" type="TextureRect" parent="Stars"]
+[node name="Star3" type="TextureRect" parent="BannerPanel/Layout/Stars"]
+layout_mode = 2
 mouse_filter = 2
 texture = ExtResource("2_star")
 stretch_mode = 5
+
+[node name="Confetti" parent="." instance=ExtResource("5_confetti")]
+unique_name_in_owner = true
+position = Vector2(640, -20)
+
+[node name="StarSfx" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("6_star")
 
 [node name="Tick" type="AudioStreamPlayer" parent="."]
 unique_name_in_owner = true

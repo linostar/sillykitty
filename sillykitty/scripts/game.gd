@@ -1,10 +1,11 @@
 class_name GameState
 extends Node
-## Autoload "Game": the ordered level list and linear progression (clear -> next
-## level, fail -> retry, last level -> end banner -> level 1), plus the user://
-## save of the furthest unlocked level and the best stars per level.
+## Autoload "Game" (scenes/game.tscn): the ordered level list and linear
+## progression (title -> furthest level; clear -> next level, fail -> retry, last
+## level -> end room -> level 1), the user:// save of the furthest unlocked level
+## and the best stars per level, the music and a fade-in after every scene change.
 ## Levels only report their outcome; every transition happens here, without input.
-## Logs save loads, save writes and level transitions.
+## Logs save loads, save writes and scene transitions.
 
 ## Where the autoload lives. Scripts fetch it through this path instead of the
 ## global "Game" name, which does not exist yet when test scripts compile.
@@ -22,8 +23,15 @@ const LEVEL_PATHS: Array[String] = [
 const SAVE_PATH := "user://progress.json"
 const FAIL_RETRY_DELAY := 1.6
 const CLEAR_ADVANCE_DELAY := 2.5
-const END_BANNER_DELAY := 3.5
+const END_ROOM_PATH := "res://scenes/end_room.tscn"
+## Seconds the end room shows before level 1 loads.
+const END_ROOM_TIME := 7.0
 const END_TEXT := "You did it! Every kitty is home."
+const FADE_TIME := 0.35
+
+## Music for the title and end rooms, and for every level.
+@export var title_music: AudioStream
+@export var level_music: AudioStream
 
 ## Tests replace these to run against their own levels and save file.
 var level_paths: Array[String] = LEVEL_PATHS.duplicate()
@@ -33,19 +41,51 @@ var quiet_errors := false
 var reported_errors: Array[String] = []
 
 var current_index := 0
+## True while the current level was loaded as a retry of a failed attempt.
+var retrying := false
 var furthest_index := 0
 var best_stars: Array[int] = []
 
 var _transitioning := false
 
+@onready var _music: AudioStreamPlayer = $Music
+@onready var _curtain: ColorRect = $Fade/Curtain
+
 
 func _ready() -> void:
+	if title_music == null or level_music == null:
+		push_error("[Game] title_music and level_music must both be assigned in game.tscn")
 	load_progress()
 
 
 ## Loads the furthest unlocked level.
 func start_game() -> void:
+	retrying = false
 	_go_to(furthest_index)
+
+
+## Called by the title and end rooms when they open.
+func enter_room(room_name: String) -> void:
+	print("[Game] Entered the %s" % room_name)
+	_play(title_music)
+
+
+## Total stars earned over all levels and the most there are.
+func star_total() -> Vector2i:
+	var total := 0
+	for stars in best_stars:
+		total += stars
+	return Vector2i(total, best_stars.size() * 3)
+
+
+## The music stream currently playing (null if none).
+func music_playing() -> AudioStream:
+	return _music.stream if _music.playing else null
+
+
+## The fade curtain's opacity, 0 once a scene change has faded in.
+func curtain_alpha() -> float:
+	return _curtain.color.a
 
 
 func level_count() -> int:
@@ -70,7 +110,8 @@ func attach_level(level: Level) -> void:
 	var index := level_paths.find(level.scene_file_path)
 	if index >= 0:
 		current_index = index
-	level.finished.connect(_on_level_finished.bind(level))
+	level.finished.connect(_on_level_finished)
+	_play(level_music)
 
 
 func save_progress() -> void:
@@ -118,7 +159,7 @@ func load_progress() -> void:
 	print("[Game] Loaded save from %s: furthest level %d, best stars %s" % [save_path, furthest_index + 1, best_stars])
 
 
-func _on_level_finished(cleared: bool, stars: int, level: Level) -> void:
+func _on_level_finished(cleared: bool, stars: int) -> void:
 	if _transitioning:
 		return
 	_transitioning = true
@@ -127,13 +168,13 @@ func _on_level_finished(cleared: bool, stars: int, level: Level) -> void:
 		_record_clear(index, stars)
 		await get_tree().create_timer(CLEAR_ADVANCE_DELAY).timeout
 		if index == level_paths.size() - 1:
-			print("[Game] All %d levels cleared" % level_paths.size())
-			if is_instance_valid(level):
-				level.show_banner(END_TEXT)
-			await get_tree().create_timer(END_BANNER_DELAY).timeout
+			print("[Game] All %d levels cleared; loading the end room" % level_paths.size())
+			_change_scene(END_ROOM_PATH)
+			await get_tree().create_timer(END_ROOM_TIME).timeout
 	else:
 		print("[Game] Level %d failed; retrying" % (index + 1))
 		await get_tree().create_timer(FAIL_RETRY_DELAY).timeout
+	retrying = not cleared
 	_go_to(next_index(index, cleared))
 
 
@@ -147,10 +188,24 @@ func _record_clear(index: int, stars: int) -> void:
 func _go_to(index: int) -> void:
 	current_index = index
 	print("[Game] Loading level %d/%d (%s)" % [index + 1, level_paths.size(), level_paths[index]])
-	var error := get_tree().change_scene_to_file(level_paths[index])
+	_change_scene(level_paths[index])
 	_transitioning = false
+
+
+## Swaps the current scene and fades it in from the curtain colour.
+func _change_scene(path: String) -> void:
+	var error := get_tree().change_scene_to_file(path)
 	if error != OK:
-		_report_error("Failed to load level '%s': %s" % [level_paths[index], error_string(error)])
+		_report_error("Failed to load scene '%s': %s" % [path, error_string(error)])
+		return
+	_curtain.color.a = 1.0
+	create_tween().tween_property(_curtain, "color:a", 0.0, FADE_TIME)
+
+
+func _play(stream: AudioStream) -> void:
+	if stream != null and (_music.stream != stream or not _music.playing):
+		_music.stream = stream
+		_music.play()
 
 
 func _reset_progress() -> void:

@@ -1,6 +1,7 @@
 // Resume-after-reload check for the Godot web export (plan criterion 27): in a
-// fresh browser profile, clears level 1 with a keyboard route, reloads the page
-// and confirms from the console log that the game resumed at level 2.
+// fresh browser profile, starts from the title room with a key tap, clears
+// level 1 with a keyboard route, reloads the page, starts again and confirms
+// from the console log that the game resumed at level 2.
 // Usage: node tools/resume_web.mjs [buildDir]   (default: build/web)
 // Env:   RESUME_BOOT_TIMEOUT_MS (default 30000), RESUME_CLEAR_TIMEOUT_MS (default 25000),
 //        RESUME_FLUSH_MS (default 1500)
@@ -21,10 +22,19 @@ const flushMs = Number(process.env.RESUME_FLUSH_MS ?? 1500);
 // then down beside the bed. [keys held, milliseconds]
 const LEVEL_1_KEYS = [[['ArrowUp'], 1800], [['ArrowRight'], 4000], [['ArrowDown'], 1600]];
 
+// Any movement in the title room starts the game.
+const START_TAP_MS = 150;
+
 const failures = [];
 const log = [];
 let browser;
 let server;
+
+async function tap(key, page) {
+  await page.keyboard.down(key);
+  await page.waitForTimeout(START_TAP_MS);
+  await page.keyboard.up(key);
+}
 
 // Resolves once a console line matching `pattern` has been logged (including earlier ones).
 function logged(pattern, timeoutMs, what) {
@@ -57,9 +67,11 @@ try {
   });
 
   await page.goto(served.url, { timeout: bootTimeoutMs });
-  await logged(/^\[Game\] Loading level 1\/\d+/, bootTimeoutMs, 'level 1 to load');
+  await logged(/^\[Game\] Entered the title room/, bootTimeoutMs, 'the title room');
   // Keyboard events go to the focused canvas; focusing is not game input.
   await page.focus('canvas');
+  await tap('ArrowRight', page);
+  await logged(/^\[Game\] Loading level 1\/\d+/, 10000, 'level 1 to load from the title room');
   await page.waitForTimeout(500);
   for (const [keys, ms] of LEVEL_1_KEYS) {
     for (const key of keys) await page.keyboard.down(key);
@@ -74,7 +86,10 @@ try {
   log.length = 0;
   await page.reload({ timeout: bootTimeoutMs });
   await logged(/^\[Game\] Loaded save from user:\/\/progress\.json: furthest level 2/, bootTimeoutMs, 'the save to load after reload');
-  await logged(/^\[Game\] Loading level 2\/\d+/, bootTimeoutMs, 'the game to resume at level 2');
+  await logged(/^\[Game\] Entered the title room/, bootTimeoutMs, 'the title room after reload');
+  await page.focus('canvas');
+  await tap('ArrowRight', page);
+  await logged(/^\[Game\] Loading level 2\/\d+/, 10000, 'the game to resume at level 2');
   if (log.some((l) => /^\[Game\] Loading level 1\//.test(l))) failures.push('after reload the game loaded level 1, not level 2');
 } catch (err) {
   failures.push(`resume check aborted: ${err.message}`);

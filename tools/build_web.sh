@@ -29,5 +29,7 @@ node tools/smoke_web.mjs build/web
 node tools/resume_web.mjs build/web
 
 rm -f build/sillykitty.zip
-(cd build/web && zip -X -q ../sillykitty.zip index.*)
+# The font's SIL OFL licence travels with the game.
+cp sillykitty/fonts/OFL.txt build/web/FONT-LICENSE-Fredoka-OFL.txt
+(cd build/web && zip -X -q ../sillykitty.zip index.* FONT-LICENSE-Fredoka-OFL.txt)
 echo "PASS build: build/sillykitty.zip ($(du -h build/sillykitty.zip | cut -f1))"

@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
+[ext_resource type="AudioStream" path="res://audio/music/title.mp3" id="2_title"]
+[ext_resource type="AudioStream" path="res://audio/music/play.mp3" id="3_play"]
+
+[node name="Game" type="Node"]
+process_mode = 3
+script = ExtResource("1_game")
+title_music = ExtResource("2_title")
+level_music = ExtResource("3_play")
+
+[node name="Music" type="AudioStreamPlayer" parent="."]
+volume_db = -9.0
+
+[node name="Fade" type="CanvasLayer" parent="."]
+layer = 100
+
+[node name="Curtain" type="ColorRect" parent="Fade"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.231, 0.173, 0.208, 0)

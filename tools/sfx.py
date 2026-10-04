@@ -166,6 +166,18 @@ def hiss(rng):
     return [(b + 0.3 * s) * e for b, s, e in zip(bright, smooth, env)]
 
 
+def star():
+    """Bright little chime for each star earned (pitched up per star in game)."""
+    n = int(0.35 * RATE)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        tone = math.sin(2 * math.pi * 1318.5 * t) + 0.5 * math.sin(2 * math.pi * 2637.0 * t)
+        square = 0.25 if (1975.5 * t) % 1.0 < 0.5 else -0.25
+        out.append((tone + square * math.exp(-30.0 * t)) * math.exp(-9.0 * t) * min(1.0, i / 60))
+    return out
+
+
 def write(path, samples):
     peak = max(abs(s) for s in samples) or 1.0
     frames = b"".join(struct.pack("<h", int(s / peak * PEAK * 32767)) for s in samples)
@@ -182,7 +194,7 @@ def main():
     rng = random.Random(1002)
     sounds = {"meow": meow(), "splash": splash(rng), "clear": clear(), "boing": boing(),
               "tick": tick(), "timeup": timeup(), "hum": hum(), "bark": bark(rng), "yawn": yawn(),
-              "hiss": hiss(rng)}
+              "hiss": hiss(rng), "star": star()}
     for name, samples in sounds.items():
         path = out_dir / f"{name}.wav"
         write(path, samples)

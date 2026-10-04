@@ -11,13 +11,13 @@ config_version=5
 [application]
 
 config/name="sillykitty"
-run/main_scene="res://scenes/boot.tscn"
+run/main_scene="res://scenes/title_room.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
 
-Game="*res://scripts/game.gd"
+Game="*res://scenes/game.tscn"
 
 [debug]
 
@@ -110,3 +110,7 @@ move_down={
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+
+[gui]
+
+theme/custom_font="res://fonts/fredoka_semibold.tres"

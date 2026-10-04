@@ -73,6 +73,7 @@ var _progress_stall := 0.0
 @onready var _boing: AudioStreamPlayer2D = $Boing
 @onready var _hiss: AudioStreamPlayer2D = $Hiss
 @onready var _splash_fx: CPUParticles2D = $SplashFx
+@onready var _dust: CPUParticles2D = $Dust
 @onready var _bubble: ThoughtBubble = $ThoughtBubble
 
 
@@ -412,10 +413,13 @@ func _play_sulk_animation() -> void:
 func _process(delta: float) -> void:
 	_anim_time += delta
 	if is_over():
+		_dust.emitting = false
 		return
 	_update_facing(delta)
 	var engaged := state == State.DISTRACTED and _engage_left > 0.0
 	var speed := velocity.length()
+	# Dust puffs while running.
+	_dust.emitting = speed > tuning.walk_speed + 30.0
 	if speed > 10.0:
 		_animate_walk(delta, speed)
 	elif engaged:

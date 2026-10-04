@@ -1,0 +1,29 @@
+[gd_scene format=3]
+
+[sub_resource type="Gradient" id="Gradient_confetti"]
+interpolation_mode = 1
+offsets = PackedFloat32Array(0, 0.2, 0.4, 0.6, 0.8)
+colors = PackedColorArray(0.949, 0.62, 0.298, 1, 0.957, 0.561, 0.627, 1, 1, 0.788, 0.302, 1, 0.486, 1, 0.769, 1, 0.604, 0.859, 0.918, 1)
+
+[node name="Confetti" type="CPUParticles2D"]
+emitting = false
+amount = 90
+lifetime = 2.2
+one_shot = true
+explosiveness = 0.9
+emission_shape = 3
+emission_rect_extents = Vector2(520, 8)
+direction = Vector2(0, 1)
+spread = 60.0
+gravity = Vector2(0, 260)
+initial_velocity_min = 80.0
+initial_velocity_max = 260.0
+angular_velocity_min = -360.0
+angular_velocity_max = 360.0
+damping_min = 20.0
+damping_max = 40.0
+angle_min = -180.0
+angle_max = 180.0
+scale_amount_min = 6.0
+scale_amount_max = 11.0
+color_initial_ramp = SubResource("Gradient_confetti")

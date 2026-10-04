@@ -1,0 +1,119 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/title_room.gd" id="1_title"]
+[ext_resource type="Script" path="res://scripts/room_floor.gd" id="2_floor"]
+[ext_resource type="Script" path="res://scripts/wall.gd" id="3_wall"]
+[ext_resource type="PackedScene" path="res://scenes/bed.tscn" id="4_bed"]
+[ext_resource type="PackedScene" path="res://scenes/robot.tscn" id="5_robot"]
+[ext_resource type="PackedScene" path="res://scenes/cat.tscn" id="6_cat"]
+[ext_resource type="PackedScene" path="res://scenes/yarn.tscn" id="7_yarn"]
+
+[node name="TitleRoom" type="Node2D"]
+script = ExtResource("1_title")
+
+[node name="Floor" type="Node2D" parent="."]
+script = ExtResource("2_floor")
+
+[node name="Bed" parent="." instance=ExtResource("4_bed")]
+position = Vector2(1080, 560)
+
+[node name="Yarn" parent="." instance=ExtResource("7_yarn")]
+position = Vector2(190, 610)
+
+[node name="Room" type="Node2D" parent="."]
+
+[node name="WallTop" type="StaticBody2D" parent="Room"]
+position = Vector2(640, 32)
+script = ExtResource("3_wall")
+size = Vector2(1280, 32)
+
+[node name="WallLeft" type="StaticBody2D" parent="Room"]
+position = Vector2(16, 688)
+script = ExtResource("3_wall")
+size = Vector2(32, 656)
+
+[node name="WallRight" type="StaticBody2D" parent="Room"]
+position = Vector2(1264, 688)
+script = ExtResource("3_wall")
+size = Vector2(32, 656)
+
+[node name="WallBottom" type="StaticBody2D" parent="Room"]
+position = Vector2(640, 720)
+script = ExtResource("3_wall")
+size = Vector2(1280, 32)
+
+[node name="Actors" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Sofa" type="StaticBody2D" parent="Actors"]
+position = Vector2(170, 420)
+script = ExtResource("3_wall")
+size = Vector2(200, 60)
+top_color = Color(0.561, 0.749, 0.541, 1)
+front_color = Color(0.431, 0.62, 0.412, 1)
+
+[node name="Robot" parent="Actors" instance=ExtResource("5_robot")]
+unique_name_in_owner = true
+position = Vector2(700, 470)
+
+[node name="Cat" parent="Actors" node_paths=PackedStringArray("robot") instance=ExtResource("6_cat")]
+unique_name_in_owner = true
+position = Vector2(560, 500)
+robot = NodePath("../Robot")
+
+[node name="Ui" type="CanvasLayer" parent="."]
+
+[node name="Title" type="Label" parent="Ui"]
+unique_name_in_owner = true
+offset_top = 60.0
+offset_right = 1280.0
+offset_bottom = 200.0
+theme_override_colors/font_color = Color(0.949, 0.62, 0.298, 1)
+theme_override_colors/font_outline_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_constants/outline_size = 18
+theme_override_font_sizes/font_size = 112
+text = "Silly Kitty"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Tagline" type="Label" parent="Ui"]
+unique_name_in_owner = true
+offset_top = 200.0
+offset_right = 1280.0
+offset_bottom = 250.0
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_font_sizes/font_size = 30
+text = "Restriction"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Progress" type="Label" parent="Ui"]
+unique_name_in_owner = true
+offset_top = 252.0
+offset_right = 1280.0
+offset_bottom = 292.0
+theme_override_colors/font_color = Color(0.373, 0.663, 0.761, 1)
+theme_override_font_sizes/font_size = 24
+text = "Progress"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Hint" type="Label" parent="Ui"]
+offset_top = 596.0
+offset_right = 1280.0
+offset_bottom = 636.0
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_font_sizes/font_size = 32
+text = "Move the robot to start!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Controls" type="Label" parent="Ui"]
+offset_top = 636.0
+offset_right = 1280.0
+offset_bottom = 670.0
+theme_override_colors/font_color = Color(0.373, 0.663, 0.761, 1)
+theme_override_font_sizes/font_size = 22
+text = "Arrow keys, WASD or a gamepad stick"
+horizontal_alignment = 1
+vertical_alignment = 1

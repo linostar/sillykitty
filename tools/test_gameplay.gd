@@ -123,6 +123,8 @@ func _run() -> void:
 	await _test_clock_starts_on_first_movement()
 	await _test_time_up_fails_level()
 	await _test_fail_retries_same_level()
+	await _test_intro_card_not_on_retry()
+	await _test_title_room_starts_on_movement()
 	await _test_clear_advances_to_next_level()
 	await _test_level_routes()
 	await _test_level_beelines_fail()
@@ -130,6 +132,10 @@ func _run() -> void:
 	_game.save_path = _real_save_path
 	# The audio thread releases freed sound playbacks in real time, and --fixed-fps
 	# frames take almost no real time; quitting too early reports them as leaks.
+	# The Game autoload's music keeps playing, so stop it and drop its stream first.
+	var music := _game.get_node("Music") as AudioStreamPlayer
+	music.stop()
+	music.stream = null
 	var release_deadline := Time.get_ticks_msec() + AUDIO_RELEASE_MSEC
 	while Time.get_ticks_msec() < release_deadline:
 		await process_frame
@@ -661,6 +667,19 @@ func _test_fail_retries_same_level() -> void:
 	_check(latest_retry <= 2.0, "fail_retries_within_two_seconds", "retry happens by %.2f s" % latest_retry)
 
 
+func _test_intro_card_not_on_retry() -> void:
+	_game.retrying = false
+	var level := await _load_level(-1.0)
+	var first_shown := (level.get_node("%Hud") as Hud).intro_shown()
+	(level.get_node("%Cat") as Cat).fall_into("test hazard", null)
+	await _frames(int(_game.FAIL_RETRY_DELAY * FPS) + RESTART_MARGIN_FRAMES)
+	var retry := current_scene as Level
+	var retry_shown := retry != null and retry != level and (retry.get_node("%Hud") as Hud).intro_shown()
+	_check(first_shown and retry != level and not retry_shown and _game.retrying, "intro_card_not_on_retry",
+		"first_shown=%s retried=%s retry_shown=%s retrying=%s" % [first_shown, retry != level, retry_shown, _game.retrying])
+	await _unload_level()
+	_game.retrying = false
+
 func _test_clear_advances_to_next_level() -> void:
 	var trigger := func(level: Level) -> void:
 		var cat := level.get_node("%Cat") as Cat
@@ -674,10 +693,54 @@ func _test_clear_advances_to_next_level() -> void:
 	_game.load_progress()
 
 
+## The end room (current scene, just loaded after the last clear) shows the end
+## text and star total with the title music, then level 1 loads with the level music.
+func _check_end_room() -> void:
+	var room := current_scene as EndRoom
+	var stars := _game.star_total()
+	var shows := room != null and (room.get_node("%Headline") as Label).text == GameState.END_TEXT \
+		and (room.get_node("%StarTotal") as Label).text == "%d of %d stars" % [stars.x, stars.y]
+	var title_music := _game.music_playing() == _game.title_music and _game.title_music != null
+	await _frames(int(_game.END_ROOM_TIME * FPS))
+	var back := current_scene != null and current_scene.scene_file_path == _game.LEVEL_PATHS[0]
+	var level_music := _game.music_playing() == _game.level_music and _game.level_music != null
+	_check(shows and title_music and back and level_music, "end_room_then_level_1",
+		"shows=%s title_music=%s back_at_level_1=%s level_music=%s" % [shows, title_music, back, level_music])
+
+
+## The main scene is the title room: it shows the restriction sentence, plays the
+## title music and waits; the first movement loads the furthest unlocked level,
+## which fades in with the level music (criteria 3 and 16).
+func _test_title_room_starts_on_movement() -> void:
+	var path: String = ProjectSettings.get_setting("application/run/main_scene")
+	var title := (load(path) as PackedScene).instantiate() as TitleRoom
+	if title == null:
+		_check(false, "title_room_starts_on_movement", "main scene '%s' is not a TitleRoom" % path)
+		return
+	root.add_child(title)
+	current_scene = title
+	var tagline := (title.get_node("%Tagline") as Label).text
+	await _frames(FPS)
+	var waiting := is_instance_valid(title) and current_scene == title and tagline == TitleRoom.RESTRICTION_TEXT \
+		and _game.music_playing() == _game.title_music
+	Input.action_press("move_right")
+	await _frames(1)
+	Input.action_release("move_right")
+	await _frames(int(TitleRoom.START_DELAY * FPS) + RESTART_MARGIN_FRAMES)
+	var started := current_scene != null and (not is_instance_valid(title) or current_scene != title) \
+		and current_scene.scene_file_path == _game.LEVEL_PATHS[_game.furthest_index]
+	var level_music := _game.music_playing() == _game.level_music
+	await _frames(int(_game.FADE_TIME * FPS) + 2)
+	var faded_in := is_zero_approx(_game.curtain_alpha())
+	_check(waiting and started and level_music and faded_in, "title_room_starts_on_movement",
+		"waiting=%s (tagline '%s') started=%s level_music=%s faded_in=%s" % [waiting, tagline, started, level_music, faded_in])
+	await _unload_level()
+
+
 ## Flies every level's scripted route (criteria 4, 24 and 25): each level has
 ## the mechanics planned for it, the route clears it with 3 stars, the clear
-## banner shows and the next level loads (the last level shows the end banner
-## and loads level 1). Time limit / route clear time must be >= 1.25 on every
+## banner shows and the next level loads (the last level loads the end room,
+## then level 1). Time limit / route clear time must be >= 1.25 on every
 ## level, >= 1.8 on levels 1-2, <= 1.5 on levels 7-8 and never rise from one
 ## level to the next.
 func _test_level_routes() -> void:
@@ -706,15 +769,16 @@ func _test_level_routes() -> void:
 		var cat_at := cat.global_position
 		var stars: int = outcomes[0] if outcomes.size() == 1 else -1
 		var last := i == count - 1
-		var delay := _game.CLEAR_ADVANCE_DELAY + (_game.END_BANNER_DELAY if last else 0.0)
-		await _frames(int(delay * FPS) - RESTART_MARGIN_FRAMES)
+		await _frames(int(_game.CLEAR_ADVANCE_DELAY * FPS) - RESTART_MARGIN_FRAMES)
 		var banner := hud.banner_text() if current_scene == level else "<scene already changed>"
 		await _frames(2 * RESTART_MARGIN_FRAMES)
-		var expected_path := _game.LEVEL_PATHS[0 if last else i + 1]
+		var expected_path := _game.END_ROOM_PATH if last else _game.LEVEL_PATHS[i + 1]
 		var loaded := current_scene != null and current_scene != level and current_scene.scene_file_path == expected_path
-		_check(stars == 3 and banner == (_game.END_TEXT if last else Level.CLEAR_TEXT) and loaded, name + "_route",
+		_check(stars == 3 and banner == Level.CLEAR_TEXT and loaded, name + "_route",
 			"stars=%d (-1 = not cleared) used=%.2f s of %.1f banner='%s' next_loaded=%s cat_at=%s" % [stars, used, limit,
 			banner, loaded, cat_at])
+		if last:
+			await _check_end_room()
 		await _unload_level()
 		if stars > 0:
 			# The rules use the faster of the route as written and the same route
@@ -746,7 +810,7 @@ func _rushed_clear_time(index: int) -> float:
 		await physics_frame
 		settle += 1
 	var used := level.time_limit - level.time_left if outcomes == [true] else INF
-	var delay := _game.FAIL_RETRY_DELAY if outcomes != [true] else _game.CLEAR_ADVANCE_DELAY + _game.END_BANNER_DELAY
+	var delay := _game.FAIL_RETRY_DELAY if outcomes != [true] else _game.CLEAR_ADVANCE_DELAY + _game.END_ROOM_TIME
 	await _frames(int(delay * FPS) + RESTART_MARGIN_FRAMES)
 	await _unload_level()
 	return used
@@ -769,7 +833,7 @@ func _test_level_beelines_fail() -> void:
 		_check(outcomes == [false], "level_%02d_beeline_fails" % (i + 1), "outcomes=%s (true = cleared) cat=%s" % [outcomes, state])
 		# Let Game's pending retry or advance happen before the level is unloaded.
 		var won := outcomes == [true]
-		var delay := _game.FAIL_RETRY_DELAY if not won else _game.CLEAR_ADVANCE_DELAY + _game.END_BANNER_DELAY
+		var delay := _game.FAIL_RETRY_DELAY if not won else _game.CLEAR_ADVANCE_DELAY + _game.END_ROOM_TIME
 		await _frames(int(delay * FPS) + RESTART_MARGIN_FRAMES)
 		await _unload_level()
 

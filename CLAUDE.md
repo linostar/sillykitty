@@ -17,13 +17,17 @@ CLAUDE.md
 sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720, canvas_items stretch, keep aspect)
   art/                     hand-authored SVG sprite parts
   audio/sfx/               generated WAV sound effects (tools/sfx.py), committed
+  audio/music/             generated MP3 music loops + their loop settings in .import (tools/music.py), committed
+  fonts/                   Fredoka (Google Font, SIL OFL 1.1) + OFL.txt; fredoka_semibold.tres is the project's default font
   data/cat_tuning.tres     every cat behaviour number (CatTuning resource)
-  scenes/                  boot (main scene), hud, robot, cat, hazards (puddle, vacuum, dog), props; scenes/levels/level_NN.tscn
+  scenes/                  title_room (main scene), end_room, game (the Game autoload), hud, robot, cat, hazards (puddle, vacuum, dog), props, confetti; scenes/levels/level_NN.tscn
   scripts/                 one script per scene type (class_name = file name in PascalCase)
 tools/                     outside the Godot project, never imported or exported
   check_project.gd         restriction + strict-compile gate (run by validate.sh)
   test_gameplay.gd         headless gameplay tests (run by validate.sh)
   sfx.py                   deterministic stdlib synthesiser for every sound effect
+  music.py                 stdlib chiptune synthesiser + lame MP3 encode for both music loops
+  run_main.gd              headless run of the main scene for validate.sh (quits without audio leaks)
   validate.sh              import + project check + gameplay tests + headless run
   build_web.sh             validate + web export + smoke test + itch zip
   smoke_web.mjs            Playwright (system Chrome) smoke test of the web export
@@ -42,12 +46,16 @@ build/                     git-ignored: web export, logs, smoke screenshot, sill
 - Release build for itch.io: `tools/build_web.sh` → `build/sillykitty.zip` (upload as HTML, "played in the browser", viewport 1280x720, SharedArrayBuffer off).
 - Regenerate sound effects: `python3 tools/sfx.py` (writes `sillykitty/audio/sfx/*.wav`, byte-identical on every run).
   `hum.wav` (vacuum) loops through `edit/loop_mode=2` in `hum.wav.import`; keep that line if the import file is ever recreated.
+- Regenerate music: `python3 tools/music.py` (needs `lame` and `ffmpeg`; writes `sillykitty/audio/music/{title,play}.mp3` byte-identically and switches their loop on in the `.mp3.import` files). Edit a track by editing its note patterns in `music.py`.
 - Run only the gameplay tests: `"$GODOT" --headless --path sillykitty --fixed-fps 60 --script "$PWD/tools/test_gameplay.gd"`.
 - Logs for any failure: `build/logs/{import,check,test,run,export}.log`.
 
 Gotchas:
 - Godot exits 0 even when a `--script` fails to compile. Never trust its exit code for script runs; `validate.sh` requires the explicit `check_project: OK` / `test_gameplay: OK` lines and fails on any ERROR/WARNING in their logs.
-- Quitting a script run right after freeing a playing sound reports leaked `AudioStreamPlayback` objects; `test_gameplay.gd` waits in real time before quitting.
+- Quitting a script run right after freeing a playing sound reports leaked `AudioStreamPlayback` objects; `test_gameplay.gd` and `run_main.gd` stop the autoload's music (and drop its stream) and wait in real time before quitting. That is why validate.sh runs the main scene through `run_main.gd` instead of `--quit-after`.
+- MP3 loops are seamless only while lame writes its LAME/Xing tag: Godot (like ffmpeg) uses it to trim the encoder delay and padding, so the decoded file is exactly one loop. Never encode with `lame -t` (it drops the tag); `music.py` decodes each file and fails if it is not exactly one loop long.
+- A fresh clone has no import cache, and its first import errors because the project's default font loads before its TTF is imported; `validate.sh` runs a priming import first and tolerates only those font errors there.
+- Windowed screenshot scripts run unpaced (hundreds of fps), so particles barely move between frames; wait in real time before capturing.
 
 ## Gameplay architecture
 - Physics layers: 1 = walls, 2 = robot, 3 (bit value 4) = cat. Robot, cat and dog collide only with walls (the dog has no layer of its own). Hazards are `Area2D` with `collision_layer = 0`, `collision_mask = 4`, so only the cat triggers them (the robot hovers).
@@ -56,10 +64,12 @@ Gotchas:
 - `ThoughtBubble` (child of the cat) shows one icon per non-terminal state plus `NAP`, and the nap meter above it; it hides on `FAILED` / `CLEARED`.
 - Each `Hazard` exports its fail `reason` text, `sound`, `splashes` (wet or dizzy fail animation) and `fear_radius`; a hazard with `fear_radius > 0` joins group `threats` and is fled while its `scary` flag is on. The level plays the hazard's sound.
 - `Vacuum` (extends `Hazard`) drives its `waypoints` loop (parent coordinates) at `speed` forever, humming. `Dog` (`CharacterBody2D`, export `cat`) sleeps until it sees the cat (line of sight) within `wake_radius`, which is far wider than its bite so the cat always wakes it before touching it, then barks and chases for `chase_time`, then returns home and sleeps, or lies down where it is after `return_time`; it stops waking and chasing once `cat.is_over()`; its child `Bite` hazard is scary only while awake. Set a level's `Dog.cat` like `Cat.robot`. Level design: keep a sleeping dog at least 60 px from furniture corners, or the cat can round the corner into its bite without ever being seen (touching a sleeping dog fails too).
-- `Game` autoload (`scripts/game.gd`, class `GameState`) owns `LEVEL_PATHS` (add every new level there), linear progression (clear -> next level, fail -> retry after 1.6 s, clear of the last level -> end banner -> level 1) and the save `user://progress.json` (furthest level, best stars). It logs every load, save and transition with a `[Game]` prefix; a corrupt save is reported once and replaced.
+- `Game` autoload (`scenes/game.tscn` + `scripts/game.gd`, class `GameState`) owns `LEVEL_PATHS` (add every new level there), linear progression (title room -> furthest unlocked level; clear -> next level, fail -> retry after 1.6 s with `retrying` set, clear of the last level -> end room for 7 s -> level 1) and the save `user://progress.json` (furthest level, best stars). It also owns the music (`title_music` in the title and end rooms, `level_music` in levels; it keeps playing across retries) and a curtain that fades every scene change in. It logs every load, save and transition with a `[Game]` prefix; a corrupt save is reported once and replaced.
+- `TitleRoom` (main scene) shows the title, the restriction sentence (`RESTRICTION_TEXT`) and progress; the live robot's first movement starts the game after 0.6 s. `EndRoom` shows `GameState.END_TEXT`, the star total, credits and confetti. Both call `Game.enter_room()`.
 - Reach the autoload with `get_node(GameState.AUTOLOAD_PATH) as GameState`, never the global name `Game`: test scripts compile before autoloads exist, so any script naming `Game` breaks every test.
 - `Level` (`scripts/level.gd`) exports `time_limit` and `hint`, runs the countdown (starts on the robot's `started_moving`, red and ticking for the last 10 s or the last 40% of a shorter limit, time-up = fail), awards 1-3 stars from the time left (3 at >= 20% of the limit, 2 at >= 10%) and only reports `finished(cleared, stars)`; `Game` decides what loads next. No input is ever needed to continue.
 - Every level instances `scenes/hud.tscn` (unique name `%Hud`) and marks its robot and cat with unique names `%Robot` and `%Cat`.
+- Juice: the HUD shows a "Level N" intro card (not on retries), the outcome banner on a panel, stars popping in with a rising chime, and a confetti burst on a clear; the countdown pulses on each tick; the level root shakes on a fail (the HUD is a CanvasLayer, so it stays still); the cat kicks up dust while running.
 - Levels: `RoomFloor` draws the floor; border `Wall`s go under `Room`; furniture `Wall`s, the robot and the cat go under the y-sorted `Actors` node. `Wall` origin is the bottom-centre of its footprint. `Wall` and `RoomFloor` are `@tool` scripts, so levels can be laid out visually in the editor.
 - Positions of the robot, cat and props are their feet; visuals are drawn upward from there.
 - Robot, cat and dog use `wall_min_slide_angle = 0` so they slide along furniture even when pushing into it almost head-on (the default 15 degrees freezes a chasing cat against walls).
@@ -78,7 +88,7 @@ Gotchas:
 - Vacuum parts (3/4 view): `vacuum_body`, `vacuum_brush` (x2, spun under a 0.45 y-squash for perspective), `vacuum_light`.
 - Dog parts (side view facing right): `dog_body`, `dog_head`, `dog_eyelid` (shown while asleep), `dog_ear` (pivot at the top), `dog_tail` (pivot at the base, bottom-right), `dog_paw` (x4).
 - Thought bubble: `bubble`, icons `icon_idle`, `icon_heart` (chase), `icon_alert` (flee), `icon_zzz` (nap, also the dog's snore); distracted and go-to-bed reuse `yarn` and `cat_bed`.
-- Props: `puddle` (hazard), `cat_bed` (goal), `yarn` (distraction); HUD: `star`. Walls and floors are drawn in code (`wall.gd`, `room_floor.gd`).
+- Props: `puddle` (hazard), `cat_bed` (goal), `yarn` (distraction); HUD: `star`. Confetti is `scenes/confetti.tscn` (CPUParticles2D squares in palette colours). Walls and floors are drawn in code (`wall.gd`, `room_floor.gd`).
 
 ### Palette
 | Token | Hex | Use |

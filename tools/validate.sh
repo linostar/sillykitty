@@ -14,7 +14,7 @@ mkdir -p "$LOG_DIR"
 
 fail() {
   echo "FAIL $1 (log: $2)" >&2
-  grep -E "ERROR|WARNING|check_project|test_gameplay" "$2" >&2 || true
+  grep -E "ERROR|WARNING|check_project|test_gameplay|run_main" "$2" >&2 || true
   exit 1
 }
 
@@ -31,6 +31,16 @@ godot() {
   return "$status"
 }
 
+# On a fresh clone (no import cache) the first import reports errors because the
+# project's default font is loaded before its TTF has been imported. A priming
+# import fills the cache; the checked import below then must be clean.
+# Only those font errors are tolerated there.
+if [ ! -d sillykitty/.godot/imported ]; then
+  godot "$LOG_DIR/import_prime.log" --headless --path sillykitty --import || true
+  if grep -E "ERROR|WARNING" "$LOG_DIR/import_prime.log" | grep -qvE "Fredoka-Variable\.ttf|fredoka_semibold\.tres"; then
+    fail "priming import reported problems besides the project font" "$LOG_DIR/import_prime.log"
+  fi
+fi
 godot "$LOG_DIR/import.log" --headless --path sillykitty --import || fail "import exited non-zero" "$LOG_DIR/import.log"
 if grep -qE "ERROR|WARNING" "$LOG_DIR/import.log"; then fail "import reported problems" "$LOG_DIR/import.log"; fi
 
@@ -46,7 +56,9 @@ if ! grep -q "^test_gameplay: OK" "$LOG_DIR/test.log" || grep -qE "ERROR|WARNING
   fail "gameplay tests" "$LOG_DIR/test.log"
 fi
 
-godot "$LOG_DIR/run.log" --headless --path sillykitty --quit-after "${RUN_FRAMES:-300}" || fail "headless run exited non-zero" "$LOG_DIR/run.log"
-if grep -qE "ERROR|WARNING" "$LOG_DIR/run.log"; then fail "headless run reported problems" "$LOG_DIR/run.log"; fi
+RUN_FRAMES="${RUN_FRAMES:-300}" godot "$LOG_DIR/run.log" --headless --path sillykitty --script "$PWD/tools/run_main.gd" || true
+if ! grep -q "^run_main: OK" "$LOG_DIR/run.log" || grep -qE "ERROR|WARNING" "$LOG_DIR/run.log"; then
+  fail "headless run of the main scene" "$LOG_DIR/run.log"
+fi
 
 echo "PASS validate ($(grep "^check_project: OK" "$LOG_DIR/check.log"); $(grep "^test_gameplay: OK" "$LOG_DIR/test.log"))"
