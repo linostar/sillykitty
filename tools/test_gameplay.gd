@@ -121,6 +121,7 @@ func _run() -> void:
 	await _test_level_hints_fit_hud()
 	_test_stars_for_time_left()
 	_test_warning_seconds()
+	_test_fit_window_rect()
 	_test_next_index()
 	_test_save_round_trip()
 	_test_missing_save_starts_fresh()
@@ -659,6 +660,28 @@ func _test_stars_for_time_left() -> void:
 	var stars: Array[int] = [Level.stars_for(12.0, 60.0), Level.stars_for(11.0, 60.0), Level.stars_for(6.0, 60.0),
 		Level.stars_for(5.0, 60.0), Level.stars_for(0.0, 60.0)]
 	_check(stars == [3, 2, 2, 1, 1], "stars_for_time_left", "got %s, expected [3, 2, 2, 1, 1]" % [stars])
+
+
+## The desktop window is scaled by the screen density, shrunk to fit with its
+## frame, and its framed rect is centred inside the usable screen area.
+func _test_fit_window_rect() -> void:
+	var base := Vector2i(1408, 792)
+	# 2x Retina with room to spare (macOS: 64 px title bar, menu bar above y 78).
+	var roomy := GameState.fit_window_rect(base, 2.0, Rect2i(0, 78, 3600, 2070), Vector2i(0, 64), Vector2i(0, 64))
+	# 1x 1366x768 laptop with a 40 px taskbar (Windows-style frame: borders and a 31 px title).
+	var small_usable := Rect2i(0, 0, 1366, 728)
+	var small := GameState.fit_window_rect(base, 1.0, small_usable, Vector2i(16, 39), Vector2i(8, 31))
+	var small_framed := Rect2i(small.position - Vector2i(8, 31), small.size + Vector2i(16, 39))
+	# 2x 13-inch screen too short for the window: the framed top sits at the usable top.
+	var tight := GameState.fit_window_rect(base, 2.0, Rect2i(0, 74, 2880, 1626), Vector2i(0, 64), Vector2i(0, 64))
+	# 1x full-HD screen: unchanged.
+	var full_hd := GameState.fit_window_rect(base, 1.0, Rect2i(0, 0, 1920, 1040), Vector2i(16, 39), Vector2i(8, 31))
+	var ok := roomy == Rect2i(392, 353, 2816, 1584) \
+		and small_usable.encloses(small_framed) and small_framed.size.y == small_usable.size.y \
+		and absf(float(small.size.x) / small.size.y - 16.0 / 9.0) < 0.01 \
+		and tight.position.y - 64 == 74 and tight.size.y + 64 <= 1626 \
+		and full_hd.size == base
+	_check(ok, "fit_window_rect", "roomy=%s small=%s (framed %s) tight=%s full_hd=%s" % [roomy, small, small_framed, tight, full_hd])
 
 
 func _test_warning_seconds() -> void:

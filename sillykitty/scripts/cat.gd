@@ -335,7 +335,6 @@ func _set_state(new_state: State) -> void:
 	if is_over():
 		# Land a turn-around hop (or a play bounce) the level ended in; the end
 		# animations start from the floor.
-		_turn_left = 0.0
 		_visual.position.y = 0.0
 		_shadow.scale = _shadow_rest
 	_bubble.show_state(new_state)

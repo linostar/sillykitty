@@ -68,25 +68,36 @@ func _ready() -> void:
 
 
 ## Desktop windows are sized in physical pixels, so on a high-density screen
-## (a 2x Retina display) the project's window size would show at half size.
-## Scales the window by the screen's density, shrunk to fit the usable screen
-## area (title bar included), and centres it. The web build fills its page and
-## a game embedded in the editor is sized by the editor, so both are left alone.
+## (a 2x Retina display) the project's window size would show at half size,
+## and on a small screen it may not fit. Applies `fit_window_rect()`. The web
+## build fills its page and a game embedded in the editor is sized by the
+## editor, so both are left alone.
 func _fit_window() -> void:
 	var window := get_window()
 	if OS.has_feature("web") or Engine.is_embedded_in_editor() or window.mode != Window.MODE_WINDOWED:
 		return
 	var density := DisplayServer.screen_get_scale(window.current_screen)
-	if density <= 1.0:
+	var fitted := fit_window_rect(window.size, density, DisplayServer.screen_get_usable_rect(window.current_screen),
+		window.get_size_with_decorations() - window.size, window.position - window.get_position_with_decorations())
+	if fitted.size == window.size:
 		return
-	var decorations := window.get_size_with_decorations() - window.size
-	var usable := DisplayServer.screen_get_usable_rect(window.current_screen)
-	var room := Vector2(usable.size - decorations)
-	var wanted := Vector2(window.size) * density
+	window.size = fitted.size
+	window.position = fitted.position
+	print("[Game] Fitted the window to a %.1fx screen: %s" % [density, fitted])
+
+
+## The client rect for a window of `base` screen points on a screen of
+## `density`: scaled to pixels, shrunk (keeping its aspect) until it fits the
+## `usable` screen rect together with its frame (`frame_size` = framed minus
+## client size, `client_offset` = client position inside the frame), and placed
+## so the framed window is centred in the usable rect.
+static func fit_window_rect(base: Vector2i, density: float, usable: Rect2i, frame_size: Vector2i, client_offset: Vector2i) -> Rect2i:
+	var room := Vector2(usable.size - frame_size)
+	var wanted := Vector2(base) * density
 	wanted *= minf(1.0, minf(room.x / wanted.x, room.y / wanted.y))
-	window.size = Vector2i(wanted)
-	window.position = usable.position + Vector2i(Vector2(usable.size - window.get_size_with_decorations()) / 2.0)
-	print("[Game] Scaled the window for a %.1fx screen to %s" % [density, window.size])
+	var client := Vector2i(wanted)
+	var framed_position := usable.position + Vector2i(Vector2(usable.size - client - frame_size) / 2.0)
+	return Rect2i(framed_position + client_offset, client)
 
 
 ## Loads the furthest unlocked level.
