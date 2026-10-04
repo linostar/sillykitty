@@ -535,6 +535,8 @@ func _update_facing(delta: float) -> float:
 		_turn.want(signf(robot_offset))
 	_turn.advance(delta)
 	_visual.scale = Vector2(_turn.facing, 1.0)
+	# The bubble follows the head, which swings across before the body mirrors.
+	_bubble.face(-_turn.facing if _turn.head_mirrored() else _turn.facing)
 	_head.position.x = _head_rest.x * (1.0 - 2.0 * _turn.head_shift)
 	_head.scale.x = -1.0 if _turn.head_mirrored() else 1.0
 	return _turn.lift * Turn.HOP

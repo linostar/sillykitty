@@ -190,19 +190,28 @@ func _test_cat_turns_round_with_a_hop() -> void:
 	var visual := cat.get_node("Visual") as Node2D
 	var head := cat.get_node("Visual/Head") as Node2D
 	var shadow := cat.get_node("Shadow") as Node2D
+	var bubble := cat.get_node("ThoughtBubble") as ThoughtBubble
 	await _frames(60)
 	var facing_right := is_equal_approx(visual.scale.x, 1.0)
+	var bubble_before := _bubble_over_head(bubble, head)
 	var shadow_rest := shadow.scale
 	var head_rest := head.position
 	bot.position = Vector2(cat.position.x - 150.0, 300)
 	var turn := await _watch_turn(visual, head, shadow, 60)
+	var bubble_after := _bubble_over_head(bubble, head)
 	var turned := is_equal_approx(visual.scale.x, -1.0) and visual.position.y == 0.0 \
 		and shadow.scale.is_equal_approx(shadow_rest) and head.position.is_equal_approx(head_rest) and head.scale.x == 1.0
 	_check(facing_right and turned and turn.hop > Turn.HOP * 0.8 and turn.narrowest == 1.0 and turn.head_swung
-		and turn.head_flipped and turn.smallest_shadow < 1.0 - Turn.SHADOW_SHRINK * 0.8,
-		"cat_turns_round_with_a_hop", "started facing right=%s, ended turned=%s (scale.x=%.2f), %s"
-		% [facing_right, turned, visual.scale.x, turn])
+		and turn.head_flipped and turn.smallest_shadow < 1.0 - Turn.SHADOW_SHRINK * 0.8 and bubble_before and bubble_after,
+		"cat_turns_round_with_a_hop", "started facing right=%s, ended turned=%s (scale.x=%.2f), %s, bubble trail over the head before=%s after=%s"
+		% [facing_right, turned, visual.scale.x, turn, bubble_before, bubble_after])
 	await _dispose(arena)
+
+
+## True when the thought bubble's trail ends right above the cat's head.
+func _bubble_over_head(bubble: ThoughtBubble, head: Node2D) -> bool:
+	var tip := bubble.trail_tip()
+	return absf(tip.x - head.global_position.x) <= 6.0 and tip.y < head.global_position.y - 40.0
 
 
 ## The dog turns round the same way as the cat: on waking (while it jumps
