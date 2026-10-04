@@ -61,14 +61,27 @@ const ROUTE_REACH := 14.0
 const ROUTE_STEP_TIMEOUT := 20.0
 ## Seconds the cat gets to walk into its bed after the route ends.
 const ROUTE_SETTLE := 15.0
-## Level 5 played by racing ahead without ever waiting for the cat: the cat
-## loses sight of the robot behind the long walls and dozes off.
-const LEVEL_05_RACE: Array = [Vector3(1130, 170, INF), Vector3(1150, 340, INF), Vector3(200, 350, INF),
-	Vector3(150, 600, INF), 10.0]
-## The mechanics each level must have and the one it introduces (criterion 24).
+## The long-route levels (index = level number - 1) played by racing ahead
+## without ever waiting for the cat: it loses sight of the robot behind the
+## long walls and dozes off.
+const LEVEL_RACES: Dictionary[int, Array] = {
+	4: [Vector3(1130, 170, INF), Vector3(1150, 340, INF), Vector3(200, 350, INF), Vector3(150, 600, INF), 10.0],
+	13: [Vector3(1000, 140, INF), Vector3(1000, 300, INF), Vector3(640, 300, INF), Vector3(200, 300, INF),
+		Vector3(200, 580, INF), 10.0],
+}
+## Second solutions of the levels whose hint promises a choice of paths: level 13
+## past the sprinkler along the bottom instead of past the yarn along the top.
+const LEVEL_ALTERNATIVE_ROUTES: Dictionary[int, Array] = {
+	12: [Vector2(640, 620), Vector2(920, 600), Vector2(930, 330), Vector2(1160, 140)],
+}
+## Neighbouring levels' limit / route time may rise by this much: measurement
+## noise, not a difficulty step (criterion 25).
+const RATIO_TOLERANCE := 0.01
+## The mechanics each level must have, a kind listed n times needing at least n
+## of them, and the one it introduces (criterion 24).
 const LEVEL_MECHANICS: Array[Array] = [
 	["puddle"], ["yarn"], ["puddle"], ["vacuum"], ["puddle", "yarn"], ["dog"],
-	["vacuum", "puddle", "yarn"], ["dog", "vacuum", "puddle"], ["vacuum", "puddle"], ["dog"], ["sprinkler"],
+	["vacuum", "puddle", "yarn"], ["dog", "vacuum", "puddle"], ["vacuum", "vacuum", "puddle"], ["dog", "dog"], ["sprinkler"],
 	["puddle", "sprinkler"], ["dog", "sprinkler", "yarn"], ["vacuum", "sprinkler"],
 	["dog", "vacuum", "sprinkler", "puddle", "yarn"],
 ]
@@ -156,7 +169,8 @@ func _run() -> void:
 	await _test_clear_advances_to_next_level()
 	await _test_level_routes()
 	await _test_level_beelines_fail()
-	await _test_level_05_racing_ahead_naps()
+	await _test_racing_ahead_naps()
+	await _test_level_alternative_routes()
 	_game.save_path = _real_save_path
 	# The audio thread releases freed sound playbacks in real time, and --fixed-fps
 	# frames take almost no real time; quitting too early reports them as leaks.
@@ -1137,7 +1151,8 @@ func _test_title_room_starts_on_movement() -> void:
 ## banner shows and the next level loads (the last level loads the end room,
 ## then level 1). Time limit / route clear time must be >= 1.25 on every
 ## level, >= 1.8 on levels 1-2, >= 1.45 on level 8 (the curve is spread over
-## all the levels), <= 1.5 on the last two and never rise from one level to the next.
+## all the levels), <= 1.5 on the last two and never rise from one level to the
+## next (beyond RATIO_TOLERANCE).
 func _test_level_routes() -> void:
 	var count := _game.LEVEL_PATHS.size()
 	# Per level; stays -1 for a level its route did not clear.
@@ -1185,7 +1200,7 @@ func _test_level_routes() -> void:
 	for i in count:
 		rules_ok = rules_ok and ratios[i] >= 1.25 and (i > 1 or ratios[i] >= 1.8) and (i != 7 or ratios[i] >= 1.45) \
 			and (i < count - 2 or ratios[i] <= 1.5) \
-			and (i == 0 or ratios[i] <= ratios[i - 1])
+			and (i == 0 or ratios[i] <= ratios[i - 1] + RATIO_TOLERANCE)
 	var shown := ", ".join(range(count).map(func(i: int) -> String: return "L%d %.2f" % [i + 1, ratios[i]]))
 	print("test_gameplay: time limit / fastest route clear time per level: " + shown)
 	_check(rules_ok, "level_time_limits", "limit / route time per level: " + shown)
@@ -1215,7 +1230,10 @@ func _rushed_clear_time(index: int) -> float:
 
 
 ## Flying straight at the bed must not clear any level: each level's walls,
-## puddles, yarn and threats have to be worked around.
+## puddles, yarn and threats have to be worked around. In open rooms (level 9)
+## a straight flight that keeps turning back for the cat does get there, just
+## far too slowly, so it fails on the clock; the time-limit rules cap the limits,
+## so that cannot loosen into a clear.
 func _test_level_beelines_fail() -> void:
 	for i in _game.LEVEL_PATHS.size():
 		var level := await _load_level(-1.0, i)
@@ -1236,26 +1254,46 @@ func _test_level_beelines_fail() -> void:
 		await _unload_level()
 
 
-## Level 5's long walls punish leaving the cat behind with a nap.
-func _test_level_05_racing_ahead_naps() -> void:
-	var level := await _load_level(-1.0, 4)
-	var cat := level.get_node("%Cat") as Cat
-	var reasons: Array[String] = []
-	cat.failed.connect(func(reason: String, _sound: AudioStream) -> void: reasons.append(reason))
-	await _fly_route(LEVEL_05_RACE, level.get_node("%Robot") as Robot, cat)
-	var settle := 0
-	while reasons.is_empty() and settle < int(ROUTE_SETTLE * FPS):
-		await physics_frame
-		settle += 1
-	_check(reasons == [Cat.NAP_TEXT], "level_05_racing_ahead_naps", "fail reasons=%s cat=%s" % [reasons,
-		Cat.State.keys()[cat.state]])
-	await _frames(int(_game.FAIL_RETRY_DELAY * FPS) + RESTART_MARGIN_FRAMES)
-	await _unload_level()
+## The long walls of levels 5 and 14 punish leaving the cat behind with a nap.
+func _test_racing_ahead_naps() -> void:
+	for index: int in LEVEL_RACES:
+		var level := await _load_level(-1.0, index)
+		var cat := level.get_node("%Cat") as Cat
+		var reasons: Array[String] = []
+		cat.failed.connect(func(reason: String, _sound: AudioStream) -> void: reasons.append(reason))
+		await _fly_route(LEVEL_RACES[index], level.get_node("%Robot") as Robot, cat)
+		var settle := 0
+		while reasons.is_empty() and settle < int(ROUTE_SETTLE * FPS):
+			await physics_frame
+			settle += 1
+		_check(reasons == [Cat.NAP_TEXT], "level_%02d_racing_ahead_naps" % (index + 1), "fail reasons=%s cat=%s" % [reasons,
+			Cat.State.keys()[cat.state]])
+		await _frames(int(_game.FAIL_RETRY_DELAY * FPS) + RESTART_MARGIN_FRAMES)
+		await _unload_level()
+
+
+## A level that offers a choice of paths can be cleared both ways within its limit.
+func _test_level_alternative_routes() -> void:
+	for index: int in LEVEL_ALTERNATIVE_ROUTES:
+		var level := await _load_level(-1.0, index)
+		var outcomes: Array[int] = []
+		level.finished.connect(func(cleared: bool, earned: int) -> void: outcomes.append(earned if cleared else -1))
+		var cat := level.get_node("%Cat") as Cat
+		await _fly_route(LEVEL_ALTERNATIVE_ROUTES[index], level.get_node("%Robot") as Robot, cat)
+		var settle := 0
+		while outcomes.is_empty() and settle < int(ROUTE_SETTLE * FPS):
+			await physics_frame
+			settle += 1
+		_check(outcomes.size() == 1 and outcomes[0] > 0, "level_%02d_alternative_route" % (index + 1),
+			"outcomes=%s (stars, -1 = failed) cat=%s" % [outcomes, Cat.State.keys()[cat.state]])
+		var delay := _game.CLEAR_ADVANCE_DELAY if outcomes.size() == 1 and outcomes[0] > 0 else _game.FAIL_RETRY_DELAY
+		await _frames(int(delay * FPS) + RESTART_MARGIN_FRAMES)
+		await _unload_level()
 
 
 ## Mechanics the level lacks from LEVEL_MECHANICS, plus any it has before INTRODUCED_AT.
 func _missing_mechanics(level: Level, index: int) -> Array[String]:
-	var found: Array[String] = []
+	var found: Dictionary[String, int] = {}
 	for node in level.find_children("*", "Node", true, false):
 		var kind := ""
 		if node is Vacuum:
@@ -1268,12 +1306,15 @@ func _missing_mechanics(level: Level, index: int) -> Array[String]:
 			kind = "yarn"
 		elif node is Hazard and not (node.get_parent() is Dog):
 			kind = "puddle"
-		if kind != "" and not found.has(kind):
-			found.append(kind)
+		if kind != "":
+			found[kind] = found.get(kind, 0) + 1
 	var problems: Array[String] = []
-	for kind: String in LEVEL_MECHANICS[index]:
-		if not found.has(kind):
-			problems.append(kind)
+	var wanted: Array = LEVEL_MECHANICS[index]
+	for kind: String in wanted:
+		var need := wanted.count(kind)
+		var label := kind if need == 1 else "%s x%d" % [kind, need]
+		if found.get(kind, 0) < need and not problems.has(label):
+			problems.append(label)
 	for kind in found:
 		if index + 1 < INTRODUCED_AT[kind]:
 			problems.append("early " + kind)

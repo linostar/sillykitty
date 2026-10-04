@@ -34,27 +34,6 @@ position = Vector2(950, 210)
 rotation = 1.570796
 scale = Vector2(1.9, 1.9)
 
-[node name="Sprinkler1" parent="." instance=ExtResource("13_sprinkler")]
-position = Vector2(330, 520)
-idle_time = 2.5
-warn_time = 0.5
-spray_time = 1.5
-start_time = 0.0
-
-[node name="Sprinkler2" parent="." instance=ExtResource("13_sprinkler")]
-position = Vector2(640, 200)
-idle_time = 2.5
-warn_time = 0.5
-spray_time = 1.5
-start_time = 1.0
-
-[node name="Sprinkler3" parent="." instance=ExtResource("13_sprinkler")]
-position = Vector2(950, 520)
-idle_time = 2.5
-warn_time = 0.5
-spray_time = 1.5
-start_time = 2.0
-
 [node name="Bed" parent="." instance=ExtResource("5_bed")]
 position = Vector2(1180, 560)
 
@@ -82,6 +61,27 @@ size = Vector2(1280, 32)
 
 [node name="Actors" type="Node2D" parent="."]
 y_sort_enabled = true
+
+[node name="Sprinkler1" parent="Actors" instance=ExtResource("13_sprinkler")]
+position = Vector2(330, 520)
+idle_time = 2.5
+warn_time = 0.5
+spray_time = 1.5
+start_time = 0.0
+
+[node name="Sprinkler2" parent="Actors" instance=ExtResource("13_sprinkler")]
+position = Vector2(640, 200)
+idle_time = 2.5
+warn_time = 0.5
+spray_time = 1.5
+start_time = 1.0
+
+[node name="Sprinkler3" parent="Actors" instance=ExtResource("13_sprinkler")]
+position = Vector2(950, 520)
+idle_time = 2.5
+warn_time = 0.5
+spray_time = 1.5
+start_time = 2.0
 
 [node name="Robot" parent="Actors" instance=ExtResource("7_robot")]
 unique_name_in_owner = true

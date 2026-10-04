@@ -19,20 +19,6 @@ hint = "The long way round. Mind the spray and the vacuum!"
 [node name="Floor" type="Node2D" parent="."]
 script = ExtResource("2_floor")
 
-[node name="Sprinkler1" parent="." instance=ExtResource("13_sprinkler")]
-position = Vector2(640, 350)
-idle_time = 2.5
-warn_time = 0.5
-spray_time = 2.0
-start_time = 3.5
-
-[node name="Sprinkler2" parent="." instance=ExtResource("13_sprinkler")]
-position = Vector2(880, 580)
-idle_time = 2.5
-warn_time = 0.5
-spray_time = 2.0
-start_time = 0.5
-
 [node name="Bed" parent="." instance=ExtResource("5_bed")]
 position = Vector2(1150, 600)
 
@@ -60,6 +46,20 @@ size = Vector2(1280, 32)
 
 [node name="Actors" type="Node2D" parent="."]
 y_sort_enabled = true
+
+[node name="Sprinkler1" parent="Actors" instance=ExtResource("13_sprinkler")]
+position = Vector2(640, 350)
+idle_time = 2.5
+warn_time = 0.5
+spray_time = 2.0
+start_time = 3.5
+
+[node name="Sprinkler2" parent="Actors" instance=ExtResource("13_sprinkler")]
+position = Vector2(880, 580)
+idle_time = 2.5
+warn_time = 0.5
+spray_time = 2.0
+start_time = 0.5
 
 [node name="Furniture1" type="StaticBody2D" parent="Actors"]
 position = Vector2(466, 250)

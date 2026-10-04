@@ -4,7 +4,9 @@ extends Hazard
 ## for warn_time, then it sprays its zone for spray_time and goes idle again.
 ## The cat flees it while it warns or sprays, but only the spray soaks it, so
 ## an idle sprinkler can be walked past. The zone (its collision circle) is
-## drawn on the floor in every phase, so the player can see its reach.
+## drawn on the floor in every phase, so the player can see its reach; it is a
+## child one z level down, so levels can y-sort the standing sprinkler with
+## the actors while the zone stays under them (RoomFloor sits lower still).
 
 enum Phase { IDLE, WARN, SPRAY }
 
@@ -34,6 +36,7 @@ var _radius := 0.0
 
 @onready var _head: Node2D = $Visual/HeadPivot/Head
 @onready var _nozzle: Vector2 = ($Visual/HeadPivot as Node2D).position * ($Visual as Node2D).scale
+@onready var _zone: Node2D = $Zone
 @onready var _jets: Node2D = $Jets
 @onready var _drops: CPUParticles2D = $Drops
 @onready var _spray_sound: AudioStreamPlayer2D = $Spray
@@ -46,10 +49,14 @@ func _ready() -> void:
 		push_error("Sprinkler '%s' needs a CircleShape2D zone" % get_path())
 	else:
 		_radius = circle.radius
+	_zone.draw.connect(_draw_zone)
 	_jets.draw.connect(_draw_jets)
 	if cycle_time() <= 0.0 or minf(idle_time, minf(warn_time, spray_time)) < 0.0:
 		push_error("Sprinkler '%s' needs non-negative times with a positive total" % get_path())
+		# Harmless and ignored by the cat, never a threat it flees for good.
+		scary = false
 		set_physics_process(false)
+		set_process(false)
 		return
 	_cycle_time = fposmod(start_time, cycle_time())
 	_enter(_phase_at(_cycle_time))
@@ -74,10 +81,10 @@ func _process(delta: float) -> void:
 			_jets.queue_redraw()
 		Phase.WARN:
 			_head.rotation = sin(_anim_time * WOBBLE_SPEED) * WOBBLE_ANGLE
-			queue_redraw()
+			_zone.queue_redraw()
 
 
-func _draw() -> void:
+func _draw_zone() -> void:
 	var fill := 0.12
 	var ring := 0.45
 	match phase:
@@ -86,8 +93,8 @@ func _draw() -> void:
 		Phase.SPRAY:
 			fill = 0.35
 			ring = 0.9
-	draw_circle(Vector2.ZERO, _radius, Color(WATER, fill))
-	draw_arc(Vector2.ZERO, _radius, 0.0, TAU, 64, Color(WATER_DEEP, ring), 3.0, true)
+	_zone.draw_circle(Vector2.ZERO, _radius, Color(WATER, fill))
+	_zone.draw_arc(Vector2.ZERO, _radius, 0.0, TAU, 64, Color(WATER_DEEP, ring), 3.0, true)
 
 
 ## Jets arc from the nozzle to the edge of the zone, turning with the head.
@@ -122,7 +129,7 @@ func _enter(next: Phase) -> void:
 		# A cat already standing in the zone is soaked the moment the spray starts.
 		for body in get_overlapping_bodies():
 			_on_body_entered(body)
-	queue_redraw()
+	_zone.queue_redraw()
 
 
 func _on_body_entered(body: Node2D) -> void:

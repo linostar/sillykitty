@@ -31,13 +31,6 @@ position = Vector2(760, 470)
 rotation = 1.570796
 scale = Vector2(1, 1)
 
-[node name="Sprinkler1" parent="." instance=ExtResource("13_sprinkler")]
-position = Vector2(1060, 260)
-idle_time = 2.0
-warn_time = 0.5
-spray_time = 1.5
-start_time = 1.5
-
 [node name="Bed" parent="." instance=ExtResource("5_bed")]
 position = Vector2(1170, 120)
 
@@ -68,6 +61,13 @@ size = Vector2(1280, 32)
 
 [node name="Actors" type="Node2D" parent="."]
 y_sort_enabled = true
+
+[node name="Sprinkler1" parent="Actors" instance=ExtResource("13_sprinkler")]
+position = Vector2(1060, 260)
+idle_time = 2.0
+warn_time = 0.5
+spray_time = 1.5
+start_time = 1.5
 
 [node name="Furniture1" type="StaticBody2D" parent="Actors"]
 position = Vector2(466, 370)

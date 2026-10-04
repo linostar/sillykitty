@@ -1,13 +1,21 @@
 @tool
 class_name RoomFloor
 extends Node2D
-## Draws the wooden floor boards of a 1280x720 room (also in the editor).
+## Draws the wooden floor boards of a 1280x720 room (also in the editor). It
+## sits two z levels down, below the floor-level zones of y-sorted props (a
+## sprinkler's zone is at -1).
+
+const Z_LEVEL := -2
 
 const SIZE := Vector2(1280.0, 720.0)
 const BOARD_HEIGHT := 48.0
 const BOARD_LENGTH := 256.0
 const FLOOR_COLOR := Color("#F6E7CB")
 const LINE_COLOR := Color("#E8D3AE")
+
+
+func _init() -> void:
+	z_index = Z_LEVEL
 
 
 func _draw() -> void:

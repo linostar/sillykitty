@@ -20,13 +20,6 @@ hint = "Dog, sprinkler and yarn. Pick your path!"
 [node name="Floor" type="Node2D" parent="."]
 script = ExtResource("2_floor")
 
-[node name="Sprinkler1" parent="." instance=ExtResource("13_sprinkler")]
-position = Vector2(640, 610)
-idle_time = 2.5
-warn_time = 0.5
-spray_time = 2.0
-start_time = 0.0
-
 [node name="Bed" parent="." instance=ExtResource("5_bed")]
 position = Vector2(1160, 140)
 
@@ -57,6 +50,13 @@ size = Vector2(1280, 32)
 
 [node name="Actors" type="Node2D" parent="."]
 y_sort_enabled = true
+
+[node name="Sprinkler1" parent="Actors" instance=ExtResource("13_sprinkler")]
+position = Vector2(640, 610)
+idle_time = 2.5
+warn_time = 0.5
+spray_time = 2.0
+start_time = 3.5
 
 [node name="Furniture1" type="StaticBody2D" parent="Actors"]
 position = Vector2(1100, 300)
