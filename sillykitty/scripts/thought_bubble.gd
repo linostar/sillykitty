@@ -26,6 +26,8 @@ const ICON_X := 2.0
 @export var nap_icon: Texture2D
 
 var _nap := 0.0
+## The nap meter's sideways offset, kept centred over the cloud.
+var _meter_x := CLOUD_X
 
 @onready var _cloud: Node2D = $Cloud
 @onready var _icon: Sprite2D = $Cloud/Icon
@@ -63,12 +65,14 @@ func face(facing: float) -> void:
 	_cloud.flip_h = facing > 0.0
 	_cloud.position.x = CLOUD_X * facing
 	_icon.position.x = -ICON_X * facing
+	if _meter_x != _cloud.position.x:
+		_meter_x = _cloud.position.x
+		queue_redraw()
 
 
 ## Where the trail of small circles ends, in global coordinates.
 func trail_tip() -> Vector2:
-	var tip := TRAIL_TIP * Vector2(-1.0 if _cloud.flip_h else 1.0, 1.0)
-	return _cloud.global_position + tip
+	return _cloud.to_global(TRAIL_TIP * Vector2(-1.0 if _cloud.flip_h else 1.0, 1.0))
 
 
 ## The icon on show, or null when the bubble is hidden.
@@ -98,5 +102,6 @@ func set_nap(value: float) -> void:
 func _draw() -> void:
 	if _nap <= 0.0:
 		return
-	draw_rect(METER_RECT, METER_BACK)
-	draw_rect(Rect2(METER_RECT.position, Vector2(METER_RECT.size.x * _nap, METER_RECT.size.y)), METER_FILL)
+	var meter := Rect2(METER_RECT.position + Vector2(_meter_x, 0.0), METER_RECT.size)
+	draw_rect(meter, METER_BACK)
+	draw_rect(Rect2(meter.position, Vector2(meter.size.x * _nap, meter.size.y)), METER_FILL)

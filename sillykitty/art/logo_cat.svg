@@ -1,6 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="228" height="192" viewBox="-6 -12 76 64">
   <!-- Splash logo: the in-game cat head (cat_head.svg) with its ears (cat_ear.svg)
-       placed as in cat.tscn, authored at 3x so it stays sharp at logo size. -->
+       placed as in cat.tscn, authored at 3x so it stays sharp at logo size.
+       To rebuild after editing those parts: viewBox "-6 -12 76 64" at 228x192;
+       each ear group holds cat_ear.svg's paths under
+       "translate(18 18) rotate(-18) translate(-12 -26)" (back) and
+       "translate(46 18) rotate(18) translate(-12 -26)" (front), i.e. the ear
+       pivots at head (-14|14, -22) rotated -/+0.314 rad, sprite offset (0, -13);
+       then cat_head.svg's shapes unchanged on top. -->
   <g transform="translate(18 18) rotate(-18) translate(-12 -26)">
     <path d="M3 24 L10 4 Q12 1 14 4 L21 24 Z" fill="#F29E4C" stroke="#3B2C35" stroke-width="3" stroke-linejoin="round"/>
     <path d="M8 22 L12 10 L16 22 Z" fill="#F48FA0"/>
