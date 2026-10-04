@@ -44,16 +44,36 @@ def lerp_curve(points, n):
 
 
 def meow():
-    n = int(0.55 * RATE)
-    pitch = lerp_curve([(0, 430), (0.35, 760), (1, 500)], n)
-    cutoff = lerp_curve([(0, 500), (0.3, 2600), (1, 700)], n)
-    phase, raw = 0.0, []
+    """A cat's "mi-aa-ow": a voice whose pitch rises then falls, shaped by vowel
+    formants that move from a closed nasal "m" through "i" and an open "aa" to
+    a rounded "ow", with a little breath. Harmonics are summed directly, each
+    weighted by the formant envelope at its frequency."""
+    n = int(0.45 * RATE)
+    pitch = lerp_curve([(0, 780), (0.22, 1120), (0.5, 1060), (1, 620)], n)
+    # (F1, F2, F3) in Hz per time fraction: m -> i -> aa -> ow -> u, set high
+    # for a small cat's short vocal tract.
+    shape = [(0.0, (360, 1450, 3100)), (0.14, (540, 2750, 3700)), (0.45, (1200, 2000, 3500)),
+             (0.8, (780, 1250, 3100)), (1.0, (500, 980, 3000))]
+    formants = [lerp_curve([(t, f[i]) for t, f in shape], n) for i in range(3)]
+    gains, widths = (1.0, 0.7, 0.3), (140.0, 200.0, 300.0)
+    # The mouth opens after the nasal onset and closes again at the end.
+    opening = lerp_curve([(0, 0.35), (0.12, 1.0), (0.85, 1.0), (1, 0.5)], n)
+    breath_rng = random.Random(7)
+    breath = lowpass([breath_rng.uniform(-1.0, 1.0) for _ in range(n)], [3000] * n)
+    env = envelope(n, 0.03, 0.13)
+    phase, out = 0.0, []
     for i in range(n):
-        vibrato = 1.0 + 0.02 * math.sin(2 * math.pi * 6 * i / RATE)
-        phase = (phase + pitch[i] * vibrato / RATE) % 1.0
-        raw.append(2.0 * phase - 1.0)
-    env = envelope(n, 0.04, 0.2)
-    return [s * e for s, e in zip(lowpass(raw, cutoff), env)]
+        f0 = pitch[i] * (1.0 + 0.015 * math.sin(2 * math.pi * 7.0 * i / RATE))
+        phase = (phase + f0 / RATE) % 1.0
+        sample = 0.0
+        k = 1
+        while k * f0 < 8000.0:
+            f = k * f0
+            amp = sum(g / (1.0 + ((f - fm[i]) / w) ** 2) for g, fm, w in zip(gains, formants, widths))
+            sample += amp * math.sin(2 * math.pi * k * phase) / k ** 0.6
+            k += 1
+        out.append((sample * opening[i] + 0.04 * breath[i]) * env[i])
+    return out
 
 
 def splash(rng):

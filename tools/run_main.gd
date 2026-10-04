@@ -2,9 +2,10 @@ extends SceneTree
 ## Headless run of the game's main scene for validate.sh: loads it the way the
 ## engine would, runs RUN_FRAMES frames (env, default 300), then quits cleanly.
 ## Prints "run_main: OK" on success.
-## Quitting while music plays races the audio thread and reports leaked
-## playbacks, so the Game autoload's music is stopped and given real time to be
-## released first (see the CLAUDE.md gotcha).
+## Quitting while a sound plays races the audio thread and reports leaked
+## playbacks, so the scene (with any meow, hum or spray still playing) is freed
+## and the Game autoload's music stopped, and they get real time to be released
+## first (see the CLAUDE.md gotcha).
 
 const AUDIO_RELEASE_MSEC := 500
 
@@ -28,6 +29,7 @@ func _run() -> void:
 		printerr("run_main: FAILED: Game autoload has no Music player")
 		quit(1)
 		return
+	current_scene.queue_free()
 	music.stop()
 	music.stream = null
 	var release_deadline := Time.get_ticks_msec() + AUDIO_RELEASE_MSEC
