@@ -19,6 +19,13 @@ const LEVEL_PATHS: Array[String] = [
 	"res://scenes/levels/level_06.tscn",
 	"res://scenes/levels/level_07.tscn",
 	"res://scenes/levels/level_08.tscn",
+	"res://scenes/levels/level_09.tscn",
+	"res://scenes/levels/level_10.tscn",
+	"res://scenes/levels/level_11.tscn",
+	"res://scenes/levels/level_12.tscn",
+	"res://scenes/levels/level_13.tscn",
+	"res://scenes/levels/level_14.tscn",
+	"res://scenes/levels/level_15.tscn",
 ]
 const SAVE_PATH := "user://progress.json"
 const FAIL_RETRY_DELAY := 1.6

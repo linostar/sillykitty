@@ -178,6 +178,18 @@ def star():
     return out
 
 
+def spray(rng):
+    """Garden sprinkler: a soft water hiss under quick "tsk-tsk-tsk" bursts."""
+    n = int(1.2 * RATE)
+    noise = [rng.uniform(-1.0, 1.0) for _ in range(n)]
+    bright = [x - s for x, s in zip(noise, lowpass(noise, [2500] * n))]
+    hiss = lowpass(noise, [3500] * n)
+    burst = int(0.11 * RATE)
+    env = envelope(n, 0.03, 0.4)
+    return [(b * math.exp(-40.0 * (i % burst) / RATE) + 0.25 * h) * e
+            for i, (b, h, e) in enumerate(zip(bright, hiss, env))]
+
+
 def write(path, samples):
     peak = max(abs(s) for s in samples) or 1.0
     frames = b"".join(struct.pack("<h", int(s / peak * PEAK * 32767)) for s in samples)
@@ -194,7 +206,7 @@ def main():
     rng = random.Random(1002)
     sounds = {"meow": meow(), "splash": splash(rng), "clear": clear(), "boing": boing(),
               "tick": tick(), "timeup": timeup(), "hum": hum(), "bark": bark(rng), "yawn": yawn(),
-              "hiss": hiss(rng), "star": star()}
+              "hiss": hiss(rng), "star": star(), "spray": spray(rng)}
     for name, samples in sounds.items():
         path = out_dir / f"{name}.wav"
         write(path, samples)

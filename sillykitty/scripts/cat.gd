@@ -123,7 +123,7 @@ func is_over() -> bool:
 
 
 ## Called by hazards. Ends the level with a fright: soaked and shaking off the
-## water when `wet` (puddles), puffed up and cowering otherwise (vacuum, dog).
+## water when `wet` (puddles, sprinklers), puffed up and cowering otherwise (vacuum, dog).
 func fall_into(reason: String, sound: AudioStream, wet: bool = true) -> void:
 	if _fail(reason, sound):
 		if wet:

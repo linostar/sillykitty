@@ -7,34 +7,56 @@
 [ext_resource type="PackedScene" path="res://scenes/bed.tscn" id="5_bed"]
 [ext_resource type="PackedScene" path="res://scenes/robot.tscn" id="7_robot"]
 [ext_resource type="PackedScene" path="res://scenes/cat.tscn" id="8_cat"]
-[ext_resource type="PackedScene" path="res://scenes/vacuum.tscn" id="9_vacuum"]
-[ext_resource type="PackedScene" path="res://scenes/dog.tscn" id="10_dog"]
 [ext_resource type="AudioStream" path="res://audio/sfx/clear.wav" id="11_clear"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="12_hud"]
+[ext_resource type="PackedScene" path="res://scenes/sprinkler.tscn" id="13_sprinkler"]
 
-[node name="Level08" type="Node2D"]
+[node name="Level12" type="Node2D"]
 script = ExtResource("1_level")
-time_limit = 10.0
-hint = "Dog, vacuum and puddles. Stay sharp!"
+time_limit = 14.5
+hint = "Puddles and sprinklers. Don't let kitty bolt!"
 
 [node name="Floor" type="Node2D" parent="."]
 script = ExtResource("2_floor")
 
 [node name="Puddle1" parent="." instance=ExtResource("4_puddle")]
-position = Vector2(600, 330)
-scale = Vector2(1, 1)
+position = Vector2(330, 210)
+rotation = 1.570796
+scale = Vector2(1.9, 1.9)
 
 [node name="Puddle2" parent="." instance=ExtResource("4_puddle")]
-position = Vector2(430, 570)
+position = Vector2(640, 510)
 rotation = 1.570796
-scale = Vector2(1.2, 1.2)
+scale = Vector2(1.9, 1.9)
 
 [node name="Puddle3" parent="." instance=ExtResource("4_puddle")]
-position = Vector2(900, 300)
-scale = Vector2(1, 1)
+position = Vector2(950, 210)
+rotation = 1.570796
+scale = Vector2(1.9, 1.9)
+
+[node name="Sprinkler1" parent="." instance=ExtResource("13_sprinkler")]
+position = Vector2(330, 520)
+idle_time = 2.5
+warn_time = 0.5
+spray_time = 1.5
+start_time = 0.0
+
+[node name="Sprinkler2" parent="." instance=ExtResource("13_sprinkler")]
+position = Vector2(640, 200)
+idle_time = 2.5
+warn_time = 0.5
+spray_time = 1.5
+start_time = 1.0
+
+[node name="Sprinkler3" parent="." instance=ExtResource("13_sprinkler")]
+position = Vector2(950, 520)
+idle_time = 2.5
+warn_time = 0.5
+spray_time = 1.5
+start_time = 2.0
 
 [node name="Bed" parent="." instance=ExtResource("5_bed")]
-position = Vector2(1160, 150)
+position = Vector2(1180, 560)
 
 [node name="Room" type="Node2D" parent="."]
 
@@ -61,37 +83,14 @@ size = Vector2(1280, 32)
 [node name="Actors" type="Node2D" parent="."]
 y_sort_enabled = true
 
-[node name="Sofa1" type="StaticBody2D" parent="Actors"]
-position = Vector2(780, 570)
-script = ExtResource("3_wall")
-kind = 1
-size = Vector2(180, 60)
-top_color = Color(0.561, 0.749, 0.541, 1)
-front_color = Color(0.431, 0.62, 0.412, 1)
-
-[node name="Furniture2" type="StaticBody2D" parent="Actors"]
-position = Vector2(1185, 330)
-script = ExtResource("3_wall")
-kind = 2
-size = Vector2(110, 50)
-
-[node name="Vacuum1" parent="Actors" instance=ExtResource("9_vacuum")]
-position = Vector2(300, 150)
-waypoints = PackedVector2Array(1040, 150, 300, 150)
-speed = 150.0
-
 [node name="Robot" parent="Actors" instance=ExtResource("7_robot")]
 unique_name_in_owner = true
-position = Vector2(170, 600)
+position = Vector2(150, 560)
 
 [node name="Cat" parent="Actors" node_paths=PackedStringArray("robot") instance=ExtResource("8_cat")]
 unique_name_in_owner = true
-position = Vector2(100, 630)
+position = Vector2(90, 610)
 robot = NodePath("../Robot")
-
-[node name="Dog1" parent="Actors" node_paths=PackedStringArray("cat") instance=ExtResource("10_dog")]
-position = Vector2(1050, 610)
-cat = NodePath("../Cat")
 
 [node name="Hud" parent="." instance=ExtResource("12_hud")]
 unique_name_in_owner = true

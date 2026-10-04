@@ -12,6 +12,7 @@ const PUDDLE_SCENE := preload("res://scenes/puddle.tscn")
 const BED_SCENE := preload("res://scenes/bed.tscn")
 const VACUUM_SCENE := preload("res://scenes/vacuum.tscn")
 const DOG_SCENE := preload("res://scenes/dog.tscn")
+const SPRINKLER_SCENE := preload("res://scenes/sprinkler.tscn")
 const HUD_SCENE := preload("res://scenes/hud.tscn")
 const FPS := 60
 const AUDIO_RELEASE_MSEC := 500
@@ -41,6 +42,17 @@ const LEVEL_ROUTES: Array[Array] = [
 	[Vector2(450, 430), 3.2, Vector2(650, 540), Vector2(820, 570), Vector2(1000, 550), Vector2(1200, 380)],
 	[Vector3(190, 410, INF), Vector3(450, 410, INF), Vector3(760, 430, INF), Vector3(1050, 430, INF),
 		Vector3(1200, 150, INF)],
+	[Vector2(300, 260), Vector2(660, 230), 1.5, Vector2(1160, 380)],
+	[Vector2(250, 590), Vector3(480, 590, 120), Vector3(600, 300, 150), Vector2(860, 130), Vector2(1210, 200),
+		Vector3(1210, 600, 120)],
+	[Vector2(300, 330), 0.6, Vector3(480, 330, 150), Vector3(700, 490, 150), Vector3(920, 490, 120), Vector2(1150, 200)],
+	[3.6, Vector3(480, 600, 250), Vector3(480, 250, 200), Vector3(640, 170, 200), Vector3(800, 250, 200),
+		Vector3(800, 420, 200), 0.8, Vector3(800, 600, 200), Vector3(1180, 560, 250)],
+	[Vector3(120, 400, INF), Vector3(120, 60, INF), Vector3(1160, 60, INF), Vector3(1160, 140, INF)],
+	[Vector2(1000, 140), 0.3, Vector3(1000, 300, 120), Vector3(640, 300, 150), Vector3(200, 300, 150),
+		Vector3(200, 580, 150), Vector3(700, 580, 150), Vector2(1150, 600)],
+	[Vector2(300, 440), Vector2(630, 430), 3.0, Vector3(630, 640, 90), Vector3(900, 640, 120), Vector2(950, 420),
+		Vector2(960, 250), Vector2(1170, 120)],
 ]
 ## Without a Vector3 pace, the route turns back for a cat more than this far behind.
 const ROUTE_PACE := 300.0
@@ -56,9 +68,11 @@ const LEVEL_05_RACE: Array = [Vector3(1130, 170, INF), Vector3(1150, 340, INF), 
 ## The mechanics each level must have and the one it introduces (criterion 24).
 const LEVEL_MECHANICS: Array[Array] = [
 	["puddle"], ["yarn"], ["puddle"], ["vacuum"], ["puddle", "yarn"], ["dog"],
-	["vacuum", "puddle", "yarn"], ["dog", "vacuum", "puddle"],
+	["vacuum", "puddle", "yarn"], ["dog", "vacuum", "puddle"], ["vacuum", "puddle"], ["dog"], ["sprinkler"],
+	["puddle", "sprinkler"], ["dog", "sprinkler", "yarn"], ["vacuum", "sprinkler"],
+	["dog", "vacuum", "sprinkler", "puddle", "yarn"],
 ]
-const INTRODUCED_AT: Dictionary[String, int] = {"puddle": 1, "yarn": 2, "vacuum": 4, "dog": 6}
+const INTRODUCED_AT: Dictionary[String, int] = {"puddle": 1, "yarn": 2, "vacuum": 4, "dog": 6, "sprinkler": 11}
 
 var _failures: Array[String] = []
 var _passed := 0
@@ -119,6 +133,10 @@ func _run() -> void:
 	await _test_dog_cut_off_from_home_still_sleeps()
 	await _test_dog_ignores_cat_once_level_is_over()
 	await _test_robot_unharmed_by_dog()
+	await _test_sprinkler_cycles()
+	await _test_idle_sprinkler_is_safe()
+	await _test_spray_soaks_cat()
+	await _test_cat_flees_sprinkler_only_when_it_sprays()
 	await _test_nap_waits_for_first_movement_then_fails()
 	await _test_nap_drains_while_busy()
 	await _test_level_hints_fit_hud()
@@ -742,6 +760,86 @@ func _test_robot_unharmed_by_dog() -> void:
 	await _dispose(arena)
 
 
+## The sprinkler idles, warns, sprays and idles again on its timings, is only
+## scary while it warns or sprays, and start_time puts it out of step.
+func _test_sprinkler_cycles() -> void:
+	var arena := _arena(Vector2(2000, 2000), Vector2(2000, 2200))
+	var sprinkler := _add_sprinkler(arena, Vector2(300, 300), 1.0, 0.5, 1.0)
+	var late := _add_sprinkler(arena, Vector2(700, 300), 1.0, 0.5, 1.0, 1.6)
+	var seen: Array[String] = []
+	var late_first := late.phase
+	var marks: Array[int] = [int(0.5 * FPS), int(1.25 * FPS), int(2.0 * FPS), int(2.75 * FPS)]
+	var frame := 0
+	for mark in marks:
+		await _frames(mark - frame)
+		frame = mark
+		seen.append("%s%s%s" % [Sprinkler.Phase.keys()[sprinkler.phase], "/scary" if sprinkler.scary else "",
+			"/drops" if (sprinkler.get_node("Drops") as CPUParticles2D).emitting else ""])
+	_check(seen == ["IDLE", "WARN/scary", "SPRAY/scary/drops", "IDLE"] and late_first == Sprinkler.Phase.SPRAY,
+		"sprinkler_cycles", "phases at 0.5/1.25/2.0/2.75 s: %s, out-of-step sprinkler started %s"
+		% [seen, Sprinkler.Phase.keys()[late_first]])
+	await _dispose(arena)
+
+
+## The cat follows the robot straight across an idle sprinkler unharmed.
+func _test_idle_sprinkler_is_safe() -> void:
+	var arena := _arena(Vector2(300, 300), Vector2(200, 300))
+	var cat := arena.get_node("Cat") as Cat
+	_add_sprinkler(arena, Vector2(450, 300), 100.0, 0.5, 1.0)
+	var crossed := false
+	Input.action_press("move_right")
+	for i in 4 * FPS:
+		await physics_frame
+		crossed = crossed or cat.position.x > 560.0
+	Input.action_release("move_right")
+	_check(crossed and not cat.is_over(), "idle_sprinkler_is_safe", "crossed=%s cat=%s at %s" % [crossed,
+		Cat.State.keys()[cat.state], cat.position])
+	await _dispose(arena)
+
+
+## A spray that starts while the cat sits in the zone soaks it: the level fails
+## with the sprinkler's reason and spray sound, and the soaked (wet) animation
+## plays. The robot hovering in the same spray is never detected.
+func _test_spray_soaks_cat() -> void:
+	var arena := _arena(Vector2(350, 300), Vector2(300, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var bot := arena.get_node("Robot") as Robot
+	var sprinkler := _add_sprinkler(arena, Vector2(330, 300), 0.5, 0.0, 1.0)
+	var reasons: Array[String] = []
+	var sounds: Array[String] = []
+	cat.failed.connect(func(reason: String, sound: AudioStream) -> void:
+		reasons.append(reason)
+		sounds.append(sound.resource_path if sound != null else "<none>"))
+	await _frames(int(0.4 * FPS))
+	var dry := not cat.is_over()
+	await _frames(int(0.2 * FPS))
+	var splashed := (cat.get_node("SplashFx") as CPUParticles2D).emitting
+	var robot_detected := sprinkler.overlaps_body(bot)
+	_check(dry and cat.state == Cat.State.FAILED and reasons == [sprinkler.reason] and sounds == ["res://audio/sfx/spray.wav"]
+		and splashed and not robot_detected, "spray_soaks_cat", "dry while idle=%s state=%s reasons=%s sounds=%s splash=%s robot_detected=%s"
+		% [dry, Cat.State.keys()[cat.state], reasons, sounds, splashed, robot_detected])
+	await _dispose(arena)
+
+
+## The cat ignores an idle sprinkler next to it, flees once it warns and
+## sprays, and gets away dry.
+func _test_cat_flees_sprinkler_only_when_it_sprays() -> void:
+	var arena := _arena(Vector2(300, 230), Vector2(300, 300))
+	var cat := arena.get_node("Cat") as Cat
+	_add_sprinkler(arena, Vector2(300, 400), 1.0, 0.5, 1.0)
+	var calm := true
+	for i in int(0.9 * FPS):
+		await physics_frame
+		calm = calm and cat.state != Cat.State.FLEE
+	var fled := false
+	for i in int(1.6 * FPS):
+		await physics_frame
+		fled = fled or cat.state == Cat.State.FLEE
+	_check(calm and fled and not cat.is_over(), "cat_flees_sprinkler_only_when_it_sprays",
+		"calm while idle=%s fled=%s cat=%s" % [calm, fled, Cat.State.keys()[cat.state]])
+	await _dispose(arena)
+
+
 func _test_nap_waits_for_first_movement_then_fails() -> void:
 	var arena := _arena(Vector2(900, 300), Vector2(100, 300))
 	var cat := arena.get_node("Cat") as Cat
@@ -1038,8 +1136,8 @@ func _test_title_room_starts_on_movement() -> void:
 ## the mechanics planned for it, the route clears it with 3 stars, the clear
 ## banner shows and the next level loads (the last level loads the end room,
 ## then level 1). Time limit / route clear time must be >= 1.25 on every
-## level, >= 1.8 on levels 1-2, <= 1.5 on levels 7-8 and never rise from one
-## level to the next.
+## level, >= 1.8 on levels 1-2, >= 1.45 on level 8 (the curve is spread over
+## all the levels), <= 1.5 on the last two and never rise from one level to the next.
 func _test_level_routes() -> void:
 	var count := _game.LEVEL_PATHS.size()
 	# Per level; stays -1 for a level its route did not clear.
@@ -1085,7 +1183,8 @@ func _test_level_routes() -> void:
 			ratios[i] = limit / minf(used, await _rushed_clear_time(i))
 	var rules_ok := true
 	for i in count:
-		rules_ok = rules_ok and ratios[i] >= 1.25 and (i > 1 or ratios[i] >= 1.8) and (i < count - 2 or ratios[i] <= 1.5) \
+		rules_ok = rules_ok and ratios[i] >= 1.25 and (i > 1 or ratios[i] >= 1.8) and (i != 7 or ratios[i] >= 1.45) \
+			and (i < count - 2 or ratios[i] <= 1.5) \
 			and (i == 0 or ratios[i] <= ratios[i - 1])
 	var shown := ", ".join(range(count).map(func(i: int) -> String: return "L%d %.2f" % [i + 1, ratios[i]]))
 	print("test_gameplay: time limit / fastest route clear time per level: " + shown)
@@ -1163,6 +1262,8 @@ func _missing_mechanics(level: Level, index: int) -> Array[String]:
 			kind = "vacuum"
 		elif node is Dog:
 			kind = "dog"
+		elif node is Sprinkler:
+			kind = "sprinkler"
 		elif node is Distraction:
 			kind = "yarn"
 		elif node is Hazard and not (node.get_parent() is Dog):
@@ -1283,6 +1384,17 @@ func _add_vacuum(arena: Node2D, at: Vector2, waypoints: PackedVector2Array) -> V
 	vacuum.waypoints = waypoints
 	arena.add_child(vacuum)
 	return vacuum
+
+
+func _add_sprinkler(arena: Node2D, at: Vector2, idle: float, warn: float, spray: float, start: float = 0.0) -> Sprinkler:
+	var sprinkler := SPRINKLER_SCENE.instantiate() as Sprinkler
+	sprinkler.position = at
+	sprinkler.idle_time = idle
+	sprinkler.warn_time = warn
+	sprinkler.spray_time = spray
+	sprinkler.start_time = start
+	arena.add_child(sprinkler)
+	return sprinkler
 
 
 func _add_dog(arena: Node2D, at: Vector2, cat: Cat) -> Dog:

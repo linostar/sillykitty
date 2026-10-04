@@ -1,0 +1,62 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/sprinkler.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://art/shadow.svg" id="2_shadow"]
+[ext_resource type="Texture2D" path="res://art/sprinkler_base.svg" id="3_base"]
+[ext_resource type="Texture2D" path="res://art/sprinkler_head.svg" id="4_head"]
+[ext_resource type="AudioStream" path="res://audio/sfx/spray.wav" id="5_spray"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_zone"]
+radius = 70.0
+
+[node name="Sprinkler" type="Area2D"]
+collision_layer = 0
+collision_mask = 4
+monitorable = false
+script = ExtResource("1_script")
+reason = "Pssht! The sprinkler soaked kitty."
+sound = ExtResource("5_spray")
+fear_radius = 120.0
+
+[node name="Shape" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_zone")
+
+[node name="Shadow" type="Sprite2D" parent="."]
+position = Vector2(0, 2)
+scale = Vector2(1.1, 1.4)
+texture = ExtResource("2_shadow")
+
+[node name="Visual" type="Node2D" parent="."]
+scale = Vector2(1.25, 1.25)
+
+[node name="Base" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -14)
+texture = ExtResource("3_base")
+
+[node name="HeadPivot" type="Node2D" parent="Visual"]
+position = Vector2(0, -28)
+scale = Vector2(1, 0.45)
+
+[node name="Head" type="Sprite2D" parent="Visual/HeadPivot"]
+texture = ExtResource("4_head")
+
+[node name="Jets" type="Node2D" parent="."]
+
+[node name="Drops" type="CPUParticles2D" parent="."]
+position = Vector2(0, -36)
+emitting = false
+amount = 24
+lifetime = 0.5
+direction = Vector2(0, -1)
+spread = 50.0
+gravity = Vector2(0, 300)
+initial_velocity_min = 50.0
+initial_velocity_max = 90.0
+scale_amount_min = 2.0
+scale_amount_max = 4.0
+color = Color(0.431, 0.757, 0.894, 1)
+
+[node name="Spray" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_spray")
+volume_db = -6.0
+max_distance = 900.0

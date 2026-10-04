@@ -14,7 +14,7 @@
 
 [node name="Level07" type="Node2D"]
 script = ExtResource("1_level")
-time_limit = 13.0
+time_limit = 14.0
 hint = "Vacuum, puddles and yarn. Keep your cool!"
 
 [node name="Floor" type="Node2D" parent="."]
