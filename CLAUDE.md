@@ -13,6 +13,7 @@ flees threats and naps; lure it to its bed. Plan and acceptance criteria: `.clau
 ## Layout
 ```
 CLAUDE.md
+README.md                  GitHub front page: pitch, play link, controls, how it was made, dev commands
 SUBMISSION.md              itch.io page text, upload settings and pre-publish checklist
 submission/                itch.io cover (630x500) and screenshots (1280x720), captured from the game
 .claude/plans/main.md      plan + acceptance criteria
