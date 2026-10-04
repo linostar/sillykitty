@@ -14,7 +14,7 @@ flees threats and naps; lure it to its bed. Plan and acceptance criteria: `.clau
 ```
 CLAUDE.md
 .claude/plans/main.md      plan + acceptance criteria
-sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720, canvas_items stretch, keep aspect; the desktop window opens at 1536x864 screen points: `Game._fit_window()` multiplies it by the screen density, e.g. 3072x1728 pixels on a 2x Retina display, shrunk to fit the usable screen)
+sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720, canvas_items stretch, keep aspect; the desktop window opens at 1536x864 screen points: `Game._fit_window()` multiplies it by the screen density, e.g. 3072x1728 pixels on a 2x Retina display, shrunk to fit the usable screen with its title bar; a run embedded in the editor's Game tab is sized by the editor instead)
   art/                     hand-authored SVG sprite parts
   audio/sfx/               generated WAV sound effects (tools/sfx.py), committed
   audio/music/             generated MP3 music loops + their loop settings in .import (tools/music.py), committed

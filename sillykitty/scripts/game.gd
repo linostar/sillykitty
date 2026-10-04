@@ -70,19 +70,22 @@ func _ready() -> void:
 ## Desktop windows are sized in physical pixels, so on a high-density screen
 ## (a 2x Retina display) the project's window size would show at half size.
 ## Scales the window by the screen's density, shrunk to fit the usable screen
-## area, and centres it. The web build fills its page and is left alone.
+## area (title bar included), and centres it. The web build fills its page and
+## a game embedded in the editor is sized by the editor, so both are left alone.
 func _fit_window() -> void:
 	var window := get_window()
-	if OS.has_feature("web") or window.mode != Window.MODE_WINDOWED:
+	if OS.has_feature("web") or Engine.is_embedded_in_editor() or window.mode != Window.MODE_WINDOWED:
 		return
 	var density := DisplayServer.screen_get_scale(window.current_screen)
 	if density <= 1.0:
 		return
+	var decorations := window.get_size_with_decorations() - window.size
 	var usable := DisplayServer.screen_get_usable_rect(window.current_screen)
+	var room := Vector2(usable.size - decorations)
 	var wanted := Vector2(window.size) * density
-	wanted *= minf(1.0, minf(usable.size.x / wanted.x, usable.size.y / wanted.y))
+	wanted *= minf(1.0, minf(room.x / wanted.x, room.y / wanted.y))
 	window.size = Vector2i(wanted)
-	window.position = usable.position + Vector2i(Vector2(usable.size - window.size) / 2.0)
+	window.position = usable.position + Vector2i(Vector2(usable.size - window.get_size_with_decorations()) / 2.0)
 	print("[Game] Scaled the window for a %.1fx screen to %s" % [density, window.size])
 
 

@@ -182,19 +182,25 @@ func _test_cat_turns_round_with_a_hop() -> void:
 	var cat := arena.get_node("Cat") as Cat
 	var bot := arena.get_node("Robot") as Robot
 	var visual := cat.get_node("Visual") as Node2D
+	var shadow := cat.get_node("Shadow") as Node2D
 	await _frames(60)
 	var facing_right := is_equal_approx(visual.scale.x, 1.0)
+	var shadow_rest := shadow.scale
 	bot.position = Vector2(cat.position.x - 150.0, 300)
 	var highest := 0.0
 	var narrowest := INF
+	var smallest_shadow := INF
 	for i in 60:
 		await physics_frame
 		highest = maxf(highest, -visual.position.y)
 		narrowest = minf(narrowest, absf(visual.scale.x))
-	var turned := is_equal_approx(visual.scale.x, -1.0) and is_equal_approx(visual.position.y, 0.0)
-	_check(facing_right and turned and highest > Cat.TURN_HOP * 0.8 and narrowest >= 1.0 - Cat.TURN_SQUEEZE - 0.01,
-		"cat_turns_round_with_a_hop", "started facing right=%s, ended turned=%s (scale.x=%.2f), hop=%.1f, narrowest=%.2f"
-		% [facing_right, turned, visual.scale.x, highest, narrowest])
+		smallest_shadow = minf(smallest_shadow, shadow.scale.x / shadow_rest.x)
+	var turned := is_equal_approx(visual.scale.x, -1.0) and is_equal_approx(visual.position.y, 0.0) \
+		and shadow.scale.is_equal_approx(shadow_rest)
+	_check(facing_right and turned and highest > Cat.TURN_HOP * 0.8 and narrowest >= 1.0 - Cat.TURN_SQUEEZE - 0.01
+		and smallest_shadow < 1.0 - Cat.TURN_SHADOW_SHRINK * 0.8,
+		"cat_turns_round_with_a_hop", "started facing right=%s, ended turned=%s (scale.x=%.2f), hop=%.1f, narrowest=%.2f, smallest shadow=%.2f"
+		% [facing_right, turned, visual.scale.x, highest, narrowest, smallest_shadow])
 	await _dispose(arena)
 
 
