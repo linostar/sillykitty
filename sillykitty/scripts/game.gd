@@ -63,7 +63,27 @@ func _ready() -> void:
 	# Applies to every scene's world (not to CanvasLayers such as the HUD) and
 	# survives scene changes, so it is set once here.
 	get_viewport().canvas_transform = Transform2D(0.0, Vector2(ROOM_SCALE, ROOM_SCALE), 0.0, room_origin())
+	_fit_window()
 	load_progress()
+
+
+## Desktop windows are sized in physical pixels, so on a high-density screen
+## (a 2x Retina display) the project's window size would show at half size.
+## Scales the window by the screen's density, shrunk to fit the usable screen
+## area, and centres it. The web build fills its page and is left alone.
+func _fit_window() -> void:
+	var window := get_window()
+	if OS.has_feature("web") or window.mode != Window.MODE_WINDOWED:
+		return
+	var density := DisplayServer.screen_get_scale(window.current_screen)
+	if density <= 1.0:
+		return
+	var usable := DisplayServer.screen_get_usable_rect(window.current_screen)
+	var wanted := Vector2(window.size) * density
+	wanted *= minf(1.0, minf(usable.size.x / wanted.x, usable.size.y / wanted.y))
+	window.size = Vector2i(wanted)
+	window.position = usable.position + Vector2i(Vector2(usable.size - window.size) / 2.0)
+	print("[Game] Scaled the window for a %.1fx screen to %s" % [density, window.size])
 
 
 ## Loads the furthest unlocked level.

@@ -36,6 +36,8 @@ const TURN_SQUEEZE := 0.35
 ## does not hop back and forth on every small wobble.
 const TURN_MIN_SPEED := 20.0
 const TURN_MIN_OFFSET := 24.0
+## The shadow shrinks by this fraction at the top of the hop.
+const TURN_SHADOW_SHRINK := 0.25
 
 @export var tuning: CatTuning
 @export var robot: Robot
@@ -74,6 +76,8 @@ var _progress_best := INF
 var _progress_stall := 0.0
 
 @onready var _visual: Node2D = $Visual
+@onready var _shadow: Sprite2D = $Shadow
+@onready var _shadow_rest := _shadow.scale
 @onready var _body: Sprite2D = $Visual/Body
 @onready var _body_rest := _body.position
 @onready var _head: Node2D = $Visual/Head
@@ -328,6 +332,12 @@ func _set_state(new_state: State) -> void:
 		return
 	var previous := state
 	state = new_state
+	if is_over():
+		# Land a turn-around hop (or a play bounce) the level ended in; the end
+		# animations start from the floor.
+		_turn_left = 0.0
+		_visual.position.y = 0.0
+		_shadow.scale = _shadow_rest
 	_bubble.show_state(new_state)
 	state_changed.emit(new_state)
 	if new_state == State.CHASE_ROBOT and previous == State.IDLE and _meow_cooldown_left <= 0.0:
@@ -386,7 +396,6 @@ func _clear() -> void:
 	reached_goal.emit()
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_visual, "scale", Vector2(_facing * 1.08, 0.85), 0.4).set_trans(Tween.TRANS_BACK)
-	tween.tween_property(_visual, "position:y", 0.0, 0.2)
 	tween.tween_property(_tail, "rotation", 1.2, 0.5)
 	tween.tween_property(_head, "rotation", 0.25, 0.5)
 
@@ -405,7 +414,6 @@ func _play_fail_animation(wet: bool) -> void:
 func _play_nap_animation() -> void:
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_visual, "scale", Vector2(_facing * 1.12, 0.72), 0.6).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(_visual, "position:y", 0.0, 0.2)
 	tween.tween_property(_head, "rotation", 0.55, 0.6)
 	tween.tween_property(_head, "position:y", _head.position.y + 12.0, 0.6)
 	tween.tween_property(_tail, "rotation", 1.6, 0.8)
@@ -416,7 +424,6 @@ func _play_nap_animation() -> void:
 func _play_sulk_animation() -> void:
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_visual, "scale", Vector2(_facing * 1.1, 0.8), 0.4).set_trans(Tween.TRANS_BACK)
-	tween.tween_property(_visual, "position:y", 0.0, 0.2)
 	tween.tween_property(_visual, "modulate", SULK_TINT, 0.4)
 	tween.tween_property(_head, "rotation", 0.45, 0.4)
 	tween.tween_property(_tail, "rotation", 1.3, 0.5)
@@ -442,6 +449,7 @@ func _process(delta: float) -> void:
 		_animate_sit(delta)
 	if not engaged:
 		_visual.position.y = -hop
+	_shadow.scale = _shadow_rest * (1.0 - TURN_SHADOW_SHRINK * hop / TURN_HOP)
 	if state == State.FLEE:
 		# Ears flat back while running scared.
 		for i in _ears.size():

@@ -12,6 +12,7 @@ const PUDDLE_SCENE := preload("res://scenes/puddle.tscn")
 const BED_SCENE := preload("res://scenes/bed.tscn")
 const VACUUM_SCENE := preload("res://scenes/vacuum.tscn")
 const DOG_SCENE := preload("res://scenes/dog.tscn")
+const HUD_SCENE := preload("res://scenes/hud.tscn")
 const FPS := 60
 const AUDIO_RELEASE_MSEC := 500
 
@@ -92,6 +93,8 @@ func _run() -> void:
 	await _test_robot_moves_with_input()
 	await _test_cat_chases_nearby_robot()
 	await _test_cat_turns_round_with_a_hop()
+	await _test_cat_does_not_turn_on_small_sideways_moves()
+	await _test_cat_lands_when_level_ends_mid_turn()
 	await _test_cat_ignores_distant_robot()
 	await _test_cat_plays_with_distraction_then_returns()
 	await _test_hazard_fails_cat()
@@ -115,6 +118,7 @@ func _run() -> void:
 	await _test_robot_unharmed_by_dog()
 	await _test_nap_waits_for_first_movement_then_fails()
 	await _test_nap_drains_while_busy()
+	await _test_level_hints_fit_hud()
 	_test_stars_for_time_left()
 	_test_warning_seconds()
 	_test_next_index()
@@ -191,6 +195,51 @@ func _test_cat_turns_round_with_a_hop() -> void:
 	_check(facing_right and turned and highest > Cat.TURN_HOP * 0.8 and narrowest >= 1.0 - Cat.TURN_SQUEEZE - 0.01,
 		"cat_turns_round_with_a_hop", "started facing right=%s, ended turned=%s (scale.x=%.2f), hop=%.1f, narrowest=%.2f"
 		% [facing_right, turned, visual.scale.x, highest, narrowest])
+	await _dispose(arena)
+
+
+## A cat walking almost straight down (sideways speed under TURN_MIN_SPEED)
+## towards a robot only slightly to its left (under TURN_MIN_OFFSET) keeps facing
+## right instead of hopping round.
+func _test_cat_does_not_turn_on_small_sideways_moves() -> void:
+	var arena := _arena(Vector2(288, 550), Vector2(300, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var visual := cat.get_node("Visual") as Node2D
+	var highest := 0.0
+	var lowest_scale := INF
+	for i in 120:
+		await physics_frame
+		highest = maxf(highest, -visual.position.y)
+		lowest_scale = minf(lowest_scale, visual.scale.x)
+	var moved := cat.position.distance_to(Vector2(300, 300))
+	_check(cat.state == Cat.State.CHASE_ROBOT and moved > 100.0 and is_zero_approx(highest) and is_equal_approx(lowest_scale, 1.0),
+		"cat_does_not_turn_on_small_sideways_moves", "state=%s moved=%.1f hop=%.1f lowest scale.x=%.2f"
+		% [Cat.State.keys()[cat.state], moved, highest, lowest_scale])
+	await _dispose(arena)
+
+
+## A level that ends in the middle of a turn-around hop puts the cat (and its
+## shadow) back on the floor.
+func _test_cat_lands_when_level_ends_mid_turn() -> void:
+	var arena := _arena(Vector2(500, 300), Vector2(300, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var bot := arena.get_node("Robot") as Robot
+	var visual := cat.get_node("Visual") as Node2D
+	var shadow := cat.get_node("Shadow") as Node2D
+	await _frames(60)
+	var shadow_rest := shadow.scale
+	bot.position = Vector2(cat.position.x - 150.0, 300)
+	var lifted := 0.0
+	for i in 30:
+		await physics_frame
+		lifted = -visual.position.y
+		if lifted > Cat.TURN_HOP * 0.5:
+			break
+	cat.time_up("test", null)
+	await _frames(30)
+	_check(lifted > Cat.TURN_HOP * 0.5 and is_zero_approx(visual.position.y) and shadow.scale.is_equal_approx(shadow_rest),
+		"cat_lands_when_level_ends_mid_turn", "lifted=%.1f when the level ended, then y=%.1f shadow=%s (rest %s)"
+		% [lifted, visual.position.y, shadow.scale, shadow_rest])
 	await _dispose(arena)
 
 
@@ -577,6 +626,27 @@ func _test_nap_drains_while_busy() -> void:
 	_check(cat.state == Cat.State.DISTRACTED and cat.nap < 0.9 - 0.4 / cat.tuning.nap_drain_time, "nap_drains_while_busy",
 		"state=%s nap=%.2f" % [Cat.State.keys()[cat.state], cat.nap])
 	await _dispose(arena)
+
+
+## Every level's hint fits the HUD's hint box between the level and timer pills.
+func _test_level_hints_fit_hud() -> void:
+	var hud := HUD_SCENE.instantiate() as Hud
+	root.add_child(hud)
+	await process_frame
+	var label := hud.get_node("Hint") as Label
+	var font := label.get_theme_font("font")
+	var font_size := label.get_theme_font_size("font_size")
+	var outline := label.get_theme_constant("outline_size")
+	var too_wide: Array[String] = []
+	for path in _game.LEVEL_PATHS:
+		var level := (load(path) as PackedScene).instantiate() as Level
+		var width := font.get_string_size(level.hint, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + outline
+		if width > label.size.x:
+			too_wide.append("%s (%.0f px)" % [path.get_file(), width])
+		level.free()
+	_check(too_wide.is_empty(), "level_hints_fit_hud", "hint box %.0f px; too wide: %s" % [label.size.x, too_wide])
+	hud.queue_free()
+	await process_frame
 
 
 func _test_stars_for_time_left() -> void:

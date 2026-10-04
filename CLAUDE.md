@@ -14,7 +14,7 @@ flees threats and naps; lure it to its bed. Plan and acceptance criteria: `.clau
 ```
 CLAUDE.md
 .claude/plans/main.md      plan + acceptance criteria
-sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720, canvas_items stretch, keep aspect; the desktop window opens at 1536x864 physical pixels, i.e. half that in points on a 2x Retina screen)
+sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720, canvas_items stretch, keep aspect; the desktop window opens at 1536x864 screen points: `Game._fit_window()` multiplies it by the screen density, e.g. 3072x1728 pixels on a 2x Retina display, shrunk to fit the usable screen)
   art/                     hand-authored SVG sprite parts
   audio/sfx/               generated WAV sound effects (tools/sfx.py), committed
   audio/music/             generated MP3 music loops + their loop settings in .import (tools/music.py), committed
@@ -55,7 +55,7 @@ Gotchas:
 - Quitting a script run right after freeing a playing sound reports leaked `AudioStreamPlayback` objects; `test_gameplay.gd` and `run_main.gd` stop the autoload's music (and drop its stream) and wait in real time before quitting. That is why validate.sh runs the main scene through `run_main.gd` instead of `--quit-after`.
 - MP3 loops are seamless only while lame writes its LAME/Xing tag: Godot (like ffmpeg) uses it to trim the encoder delay and padding, so the decoded file is exactly one loop. Never encode with `lame -t` (it drops the tag); `music.py` decodes each file and fails if it is not exactly one loop long.
 - A fresh clone has no import cache, and its first import errors because the project's default font loads before its TTF is imported; `validate.sh` runs a priming import first and tolerates only those font errors there.
-- Windowed screenshot scripts run unpaced (hundreds of fps), so particles barely move between frames; wait in real time before capturing.
+- Windowed screenshot scripts run unpaced (hundreds of fps), so particles barely move between frames; wait in real time before capturing. On a high-density screen the Game autoload scales the window (even one set with `--resolution`), so captures come out at that density; downscale them (`sips -Z 1280`).
 
 ## Gameplay architecture
 - Physics layers: 1 = walls, 2 = robot, 3 (bit value 4) = cat. Robot, cat and dog collide only with walls (the dog has no layer of its own). Hazards are `Area2D` with `collision_layer = 0`, `collision_mask = 4`, so only the cat triggers them (the robot hovers).
@@ -70,7 +70,7 @@ Gotchas:
 - `Level` (`scripts/level.gd`) exports `time_limit` and `hint`, runs the countdown (starts on the robot's `started_moving`, red and ticking for the last 10 s or the last 40% of a shorter limit, time-up = fail), awards 1-3 stars from the time left (3 at >= 20% of the limit, 2 at >= 10%) and only reports `finished(cleared, stars)`; `Game` decides what loads next. No input is ever needed to continue.
 - Every level instances `scenes/hud.tscn` (unique name `%Hud`) and marks its robot and cat with unique names `%Robot` and `%Cat`.
 - HUD top bar (in the band above the room): "Level N/8" on an orange pill, the level hint in outlined text, and the countdown on a dark robot-screen pill (glow digits, red in the warning, the pill pulses on each tick).
-- Juice: the HUD shows a "Level N" intro card (not on retries), the outcome banner on a panel, stars popping in with a rising chime, and a confetti burst on a clear; the countdown pulses on each tick; the level root shakes on a fail (the HUD is a CanvasLayer, so it stays still); the cat kicks up dust while running and turns round with a squeeze-and-hop that mirrors it at the top (`TURN_*` constants in `cat.gd`).
+- Juice: the HUD shows a "Level N" intro card (not on retries), the outcome banner on a panel, stars popping in with a rising chime, and a confetti burst on a clear; the countdown pulses on each tick; the level root shakes on a fail (the HUD is a CanvasLayer, so it stays still); the cat kicks up dust while running and turns round with a squeeze-and-hop that mirrors it at the top, its shadow shrinking under it (`TURN_*` constants in `cat.gd`; small sideways moves never turn it, and a level ending mid-hop lands it).
 - Levels: `RoomFloor` draws the floor; border `Wall`s go under `Room`; furniture `Wall`s, the robot and the cat go under the y-sorted `Actors` node. `Wall` origin is the bottom-centre of its footprint. `Wall` and `RoomFloor` are `@tool` scripts, so levels can be laid out visually in the editor.
 - Positions of the robot, cat and props are their feet; visuals are drawn upward from there.
 - Rooms are laid out in 1280x720 world coordinates but drawn at `GameState.ROOM_SCALE` (0.87), centred and resting on the screen bottom (the Game autoload sets the viewport's `canvas_transform` once). The band this frees above the room keeps actors by the top wall fully visible (sprites rise up to ~141 px above their feet) and holds the HUD; CanvasLayers (HUD, room text) stay unscaled in screen coordinates. The backdrop around the room is the project clear colour (`floor_line`). The title and end-room labels are positioned for this scale; re-check them if it changes.
