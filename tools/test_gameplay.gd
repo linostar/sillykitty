@@ -314,8 +314,10 @@ func _test_ears_settle_after_fleeing() -> void:
 			if cat.state == Cat.State.FLEE:
 				break
 		var fled := cat.state == Cat.State.FLEE
-		# Test hook: the twitch timer is private; make a twitch due the moment fleeing ends.
+		# Test hook: the twitch timer is private; make a twitch due the moment fleeing
+		# ends. set() ignores unknown names, so check it took (a rename fails here).
 		cat.set("_ear_twitch_in", 0.0)
+		var hooked := "_ear_twitch_in" in cat and is_zero_approx(cat.get("_ear_twitch_in"))
 		vacuum.queue_free()
 		for i in 2 * FPS:
 			await physics_frame
@@ -329,8 +331,8 @@ func _test_ears_settle_after_fleeing() -> void:
 			await _frames(2)
 		await _frames(FPS)
 		var at_rest := is_equal_approx(ears[0].rotation, ear_rest[0]) and is_equal_approx(ears[1].rotation, ear_rest[1])
-		ok = ok and fled and stopped and at_rest and (cat.state == Cat.State.NAP) == ends_in_nap
-		results.append("nap=%s: fled=%s stopped=%s state=%s ears %.2f, %.2f (rest %.2f, %.2f)" % [ends_in_nap, fled, stopped,
+		ok = ok and hooked and fled and stopped and at_rest and (cat.state == Cat.State.NAP) == ends_in_nap
+		results.append("nap=%s: twitch hook=%s fled=%s stopped=%s state=%s ears %.2f, %.2f (rest %.2f, %.2f)" % [ends_in_nap, hooked, fled, stopped,
 			Cat.State.keys()[cat.state], ears[0].rotation, ears[1].rotation, ear_rest[0], ear_rest[1]])
 		await _dispose(arena)
 	_check(ok, "ears_settle_after_fleeing", "; ".join(results))
