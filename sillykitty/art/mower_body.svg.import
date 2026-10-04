@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cmix8w1ku5jn4"
-path="res://.godot/imported/vacuum_body.svg-10bbfc84661b01df7ac3de2e034d165f.ctex"
+uid="uid://b8tuwoxaa4mpk"
+path="res://.godot/imported/mower_body.svg-3c7256cc0bb7dc8e358f14d509fc8930.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/vacuum_body.svg"
-dest_files=["res://.godot/imported/vacuum_body.svg-10bbfc84661b01df7ac3de2e034d165f.ctex"]
+source_file="res://art/mower_body.svg"
+dest_files=["res://.godot/imported/mower_body.svg-3c7256cc0bb7dc8e358f14d509fc8930.ctex"]
 
 [params]
 

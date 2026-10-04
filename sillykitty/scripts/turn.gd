@@ -60,6 +60,13 @@ func head_mirrored() -> bool:
 	return head_shift > 0.5
 
 
+## Faces `wanted` (+1 or -1) at once, with no turn (the animal starts that way).
+func face(wanted: float) -> void:
+	facing = wanted
+	_to = wanted
+	stop()
+
+
 ## Ends any turn at once with the animal on the ground (the level ended).
 func stop() -> void:
 	_left = 0.0

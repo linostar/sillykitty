@@ -1,8 +1,8 @@
 class_name Vacuum
 extends Hazard
-## A robot vacuum on a fixed patrol loop: from where it starts it drives to each
-## waypoint in turn, then round again from the first. The cat flees it, and
-## touching it fails the level.
+## The robot lawnmower (named Vacuum in code) on a fixed patrol loop: from
+## where it starts it drives to each waypoint in turn, then round again from the
+## first. The cat flees it, and touching it fails the level.
 
 ## Patrol points in the parent's coordinates, visited in order and looped.
 @export var waypoints: PackedVector2Array

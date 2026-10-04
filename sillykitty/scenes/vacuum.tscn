@@ -2,9 +2,9 @@
 
 [ext_resource type="Script" path="res://scripts/vacuum.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://art/shadow.svg" id="2_shadow"]
-[ext_resource type="Texture2D" path="res://art/vacuum_brush.svg" id="3_brush"]
-[ext_resource type="Texture2D" path="res://art/vacuum_body.svg" id="4_body"]
-[ext_resource type="Texture2D" path="res://art/vacuum_light.svg" id="5_light"]
+[ext_resource type="Texture2D" path="res://art/mower_blade.svg" id="3_brush"]
+[ext_resource type="Texture2D" path="res://art/mower_body.svg" id="4_body"]
+[ext_resource type="Texture2D" path="res://art/mower_light.svg" id="5_light"]
 [ext_resource type="AudioStream" path="res://audio/sfx/hiss.wav" id="6_hiss"]
 [ext_resource type="AudioStream" path="res://audio/sfx/hum.wav" id="7_hum"]
 
@@ -16,7 +16,7 @@ collision_layer = 0
 collision_mask = 4
 monitorable = false
 script = ExtResource("1_script")
-reason = "Slurp! The vacuum spooked kitty."
+reason = "Vroom! The mower spooked kitty."
 sound = ExtResource("6_hiss")
 fear_radius = 150.0
 splashes = false

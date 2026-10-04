@@ -50,8 +50,6 @@ position = Vector2(170, 420)
 script = ExtResource("3_wall")
 kind = 1
 size = Vector2(200, 60)
-top_color = Color(0.561, 0.749, 0.541, 1)
-front_color = Color(0.431, 0.62, 0.412, 1)
 
 [node name="Robot" parent="Actors" instance=ExtResource("5_robot")]
 unique_name_in_owner = true
@@ -104,7 +102,7 @@ unique_name_in_owner = true
 offset_top = 210.0
 offset_right = 1280.0
 offset_bottom = 240.0
-theme_override_colors/font_color = Color(0.373, 0.663, 0.761, 1)
+theme_override_colors/font_color = Color(0.137, 0.212, 0.271, 1)
 theme_override_font_sizes/font_size = 24
 text = "Progress"
 horizontal_alignment = 1

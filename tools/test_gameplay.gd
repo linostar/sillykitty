@@ -146,6 +146,7 @@ func _run() -> void:
 	await _test_dog_cut_off_from_home_still_sleeps()
 	await _test_dog_ignores_cat_once_level_is_over()
 	await _test_robot_unharmed_by_dog()
+	await _test_sleeping_dog_faces_open_side()
 	await _test_sprinkler_cycles()
 	await _test_idle_sprinkler_is_safe()
 	await _test_spray_soaks_cat()
@@ -757,6 +758,25 @@ func _test_dog_ignores_cat_once_level_is_over() -> void:
 	_check(woke and stopped and slept, "dog_ignores_cat_once_level_is_over",
 		"woke=%s stopped=%s slept=%s" % [woke, stopped, slept])
 	await _dispose(arena)
+
+
+## A dog asleep beside a hedge faces away from it, on either side, from its
+## first physics tick, and stays asleep.
+func _test_sleeping_dog_faces_open_side() -> void:
+	var results: Array[String] = []
+	var ok := true
+	for side: float in [1.0, -1.0]:
+		var arena := _arena(Vector2(2000, 2000), Vector2(2000, 2200))
+		var cat := arena.get_node("Cat") as Cat
+		_add_wall(arena, Vector2(300.0 + side * 40.0, 340.0), Vector2(20, 100))
+		var dog := _add_dog(arena, Vector2(300, 300), cat)
+		var visual := dog.get_node("Visual") as Node2D
+		await _frames(2)
+		var faced := visual.scale.x
+		ok = ok and is_equal_approx(faced, -side) and dog.state == Dog.State.SLEEP
+		results.append("hedge on the %s: facing %.0f, %s" % ["right" if side > 0.0 else "left", faced, Dog.State.keys()[dog.state]])
+		await _dispose(arena)
+	_check(ok, "sleeping_dog_faces_open_side", "; ".join(results))
 
 
 func _test_robot_unharmed_by_dog() -> void:

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://btg1bktvu2deu"
-path="res://.godot/imported/vacuum_light.svg-18544fbfa080c345a01c5590d54317e1.ctex"
+uid="uid://bklf4dsgdlcjf"
+path="res://.godot/imported/mower_blade.svg-b09dc8d0b5f275e9d679cdab31c1fea9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/vacuum_light.svg"
-dest_files=["res://.godot/imported/vacuum_light.svg-18544fbfa080c345a01c5590d54317e1.ctex"]
+source_file="res://art/mower_blade.svg"
+dest_files=["res://.godot/imported/mower_blade.svg-b09dc8d0b5f275e9d679cdab31c1fea9.ctex"]
 
 [params]
 

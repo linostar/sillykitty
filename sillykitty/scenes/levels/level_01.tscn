@@ -56,8 +56,6 @@ position = Vector2(640, 170)
 script = ExtResource("3_wall")
 kind = 1
 size = Vector2(260, 70)
-top_color = Color(0.561, 0.749, 0.541, 1)
-front_color = Color(0.431, 0.62, 0.412, 1)
 
 [node name="Furniture2" type="StaticBody2D" parent="Actors"]
 position = Vector2(300, 660)

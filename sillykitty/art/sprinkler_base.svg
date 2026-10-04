@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="60" height="52" viewBox="0 0 60 52">
-  <!-- weighted base disc: front face, then the top -->
-  <path d="M4 36 L4 41 A26 9 0 0 0 56 41 L56 36 Z" fill="#6E9E69" stroke="#3B2C35" stroke-width="3" stroke-linejoin="round"/>
-  <ellipse cx="30" cy="36" rx="26" ry="9" fill="#8FBF8A" stroke="#3B2C35" stroke-width="3"/>
+  <!-- weighted stone base disc: front face, then the top -->
+  <path d="M4 36 L4 41 A26 9 0 0 0 56 41 L56 36 Z" fill="#56606B" stroke="#3B2C35" stroke-width="3" stroke-linejoin="round"/>
+  <ellipse cx="30" cy="36" rx="26" ry="9" fill="#B4BEC8" stroke="#3B2C35" stroke-width="3"/>
   <path d="M12 33 C18 30 26 29 32 29" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
   <!-- hose connector on the side -->
-  <rect x="47" y="34" width="10" height="7" rx="2" fill="#56606B" stroke="#3B2C35" stroke-width="2.5" stroke-linejoin="round"/>
+  <rect x="47" y="34" width="10" height="7" rx="2" fill="#5FA9C2" stroke="#3B2C35" stroke-width="2.5" stroke-linejoin="round"/>
   <!-- stem up to the spinning head -->
   <path d="M25 37 L26 12 L34 12 L35 37 Z" fill="#D5DCE3" stroke="#3B2C35" stroke-width="3" stroke-linejoin="round"/>
   <path d="M28.5 34 L29 15" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.8"/>

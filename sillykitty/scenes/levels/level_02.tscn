@@ -68,8 +68,6 @@ position = Vector2(1000, 650)
 script = ExtResource("3_wall")
 kind = 1
 size = Vector2(240, 60)
-top_color = Color(0.561, 0.749, 0.541, 1)
-front_color = Color(0.431, 0.62, 0.412, 1)
 
 [node name="Robot" parent="Actors" instance=ExtResource("7_robot")]
 unique_name_in_owner = true

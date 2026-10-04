@@ -133,7 +133,7 @@ def timeup():
 
 
 def hum():
-    """Vacuum motor drone. Every component is a whole number of cycles per
+    """Robot lawnmower motor drone. Every component is a whole number of cycles per
     second, so the 1-second clip loops seamlessly."""
     n = RATE
     out = []

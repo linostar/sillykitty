@@ -15,7 +15,7 @@
 [node name="Level07" type="Node2D"]
 script = ExtResource("1_level")
 time_limit = 14.0
-hint = "Vacuum, puddles and yarn. Keep your cool!"
+hint = "Mower, puddles and yarn. Keep your cool!"
 
 [node name="Floor" type="Node2D" parent="."]
 script = ExtResource("2_floor")
@@ -69,8 +69,6 @@ position = Vector2(1120, 140)
 script = ExtResource("3_wall")
 kind = 1
 size = Vector2(200, 60)
-top_color = Color(0.561, 0.749, 0.541, 1)
-front_color = Color(0.431, 0.62, 0.412, 1)
 
 [node name="Furniture2" type="StaticBody2D" parent="Actors"]
 position = Vector2(1120, 680)

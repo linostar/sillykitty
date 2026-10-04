@@ -17,6 +17,8 @@ const HOME_DISTANCE := 6.0
 const ARRIVE_SLOWDOWN := 5.0
 ## Diagonal paw pairs move together: back-left with front-right.
 const PAW_PHASES: Array[float] = [0.0, PI, PI, 0.0]
+## How far the dog looks left and right for the open side to sleep facing.
+const LOOK_DISTANCE := 400.0
 
 @export var cat: Cat
 @export var wake_radius := 170.0
@@ -33,6 +35,9 @@ var _home := Vector2.ZERO
 var _anim_time := 0.0
 var _walk_phase := 0.0
 var _turn := Turn.new()
+## Whether the dog has picked the side to sleep facing (on its first physics
+## tick, once the walls are in the physics space).
+var _faced := false
 ## Height of the startled jump when the dog wakes, in pixels (tweened).
 var _jump := 0.0
 var _paw_rest: Array[Vector2] = []
@@ -66,6 +71,9 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if not _faced:
+		_faced = true
+		_face_open_side()
 	_state_time += delta
 	match state:
 		State.SLEEP:
@@ -79,6 +87,19 @@ func _physics_process(delta: float) -> void:
 				_enter(State.SLEEP)
 	velocity = velocity.move_toward(_desired_velocity(), acceleration * delta)
 	move_and_slide()
+
+
+## Faces the side with more room, so the dog never sleeps nose to a fence or
+## a hedge.
+func _face_open_side() -> void:
+	var space := get_world_2d().direct_space_state
+	var room: Array[float] = []
+	for side: float in [-1.0, 1.0]:
+		var query := PhysicsRayQueryParameters2D.create(global_position, global_position + Vector2(side * LOOK_DISTANCE, 0.0),
+			Cat.WALL_LAYER_MASK)
+		var hit := space.intersect_ray(query)
+		room.append(LOOK_DISTANCE if hit.is_empty() else global_position.distance_to(hit.position))
+	_turn.face(-1.0 if room[0] > room[1] else 1.0)
 
 
 func _sees_cat() -> bool:
