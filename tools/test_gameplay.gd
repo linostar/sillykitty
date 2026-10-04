@@ -93,6 +93,8 @@ func _run() -> void:
 	await _test_robot_moves_with_input()
 	await _test_cat_chases_nearby_robot()
 	await _test_cat_turns_round_with_a_hop()
+	await _test_dog_turns_round_like_the_cat()
+	await _test_fail_animations_do_not_spin()
 	await _test_cat_does_not_turn_on_small_sideways_moves()
 	await _test_cat_lands_when_level_ends_mid_turn()
 	await _test_cat_ignores_distant_robot()
@@ -176,36 +178,115 @@ func _test_cat_chases_nearby_robot() -> void:
 	await _dispose(arena)
 
 
-## Turning round is a hop that mirrors the cat at its top, never a paper-thin
-## squash through zero width, and it ends facing the new way at full width.
+## Turning round: the head swings across the body while the cat hops, and the
+## cat mirrors at the top of the hop at full width (never squeezed), ending
+## turned, on the floor, with its head and shadow back in place.
 func _test_cat_turns_round_with_a_hop() -> void:
 	var arena := _arena(Vector2(500, 300), Vector2(300, 300))
 	var cat := arena.get_node("Cat") as Cat
 	var bot := arena.get_node("Robot") as Robot
 	var visual := cat.get_node("Visual") as Node2D
+	var head := cat.get_node("Visual/Head") as Node2D
 	var shadow := cat.get_node("Shadow") as Node2D
 	await _frames(60)
 	var facing_right := is_equal_approx(visual.scale.x, 1.0)
 	var shadow_rest := shadow.scale
+	var head_rest := head.position
 	bot.position = Vector2(cat.position.x - 150.0, 300)
-	var highest := 0.0
-	var narrowest := INF
-	var smallest_shadow := INF
-	for i in 60:
-		await physics_frame
-		highest = maxf(highest, -visual.position.y)
-		narrowest = minf(narrowest, absf(visual.scale.x))
-		smallest_shadow = minf(smallest_shadow, shadow.scale.x / shadow_rest.x)
-	var turned := is_equal_approx(visual.scale.x, -1.0) and is_equal_approx(visual.position.y, 0.0) \
-		and shadow.scale.is_equal_approx(shadow_rest)
-	_check(facing_right and turned and highest > Cat.TURN_HOP * 0.8 and narrowest >= 1.0 - Cat.TURN_SQUEEZE - 0.01
-		and smallest_shadow < 1.0 - Cat.TURN_SHADOW_SHRINK * 0.8,
-		"cat_turns_round_with_a_hop", "started facing right=%s, ended turned=%s (scale.x=%.2f), hop=%.1f, narrowest=%.2f, smallest shadow=%.2f"
-		% [facing_right, turned, visual.scale.x, highest, narrowest, smallest_shadow])
+	var turn := await _watch_turn(visual, head, shadow, 60)
+	var turned := is_equal_approx(visual.scale.x, -1.0) and is_zero_approx(visual.position.y) \
+		and shadow.scale.is_equal_approx(shadow_rest) and head.position.is_equal_approx(head_rest) and head.scale.x == 1.0
+	_check(facing_right and turned and turn.hop > Turn.HOP * 0.8 and turn.narrowest == 1.0 and turn.head_swung
+		and turn.head_flipped and turn.smallest_shadow < 1.0 - Turn.SHADOW_SHRINK * 0.8,
+		"cat_turns_round_with_a_hop", "started facing right=%s, ended turned=%s (scale.x=%.2f), %s"
+		% [facing_right, turned, visual.scale.x, turn])
 	await _dispose(arena)
 
 
-## A cat walking almost straight down (sideways speed under TURN_MIN_SPEED)
+## The dog turns round the same way as the cat: on waking (while it jumps
+## with its bark) and again when the cat runs past it, with the turn's own hop.
+func _test_dog_turns_round_like_the_cat() -> void:
+	var arena := _arena(Vector2(400, 2000), Vector2(480, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var dog := _add_dog(arena, Vector2(600, 300), cat)
+	var visual := dog.get_node("Visual") as Node2D
+	var head := dog.get_node("Visual/Head") as Node2D
+	var shadow := dog.get_node("Shadow") as Node2D
+	var facing_right := is_equal_approx(visual.scale.x, 1.0)
+	var waking := await _watch_turn(visual, head, shadow, 30)
+	var woke_left := dog.state == Dog.State.CHASE and is_equal_approx(visual.scale.x, -1.0)
+	cat.position = dog.position + Vector2(150.0, 0.0)
+	var again := await _watch_turn(visual, head, shadow, 30)
+	var turned_back := dog.state == Dog.State.CHASE and is_equal_approx(visual.scale.x, 1.0)
+	_check(facing_right and woke_left and turned_back and waking.hop > 20.0 and waking.narrowest == 1.0
+		and again.hop > Turn.HOP * 0.8 and again.hop < Turn.HOP + 1.0 and again.narrowest == 1.0
+		and again.head_swung and again.head_flipped and again.smallest_shadow < 1.0 - Turn.SHADOW_SHRINK * 0.8,
+		"dog_turns_round_like_the_cat", "started facing right=%s, woke facing left=%s %s, turned back=%s %s"
+		% [facing_right, woke_left, waking, turned_back, again])
+	await _dispose(arena)
+
+
+## Watches an animal for `frames` physics frames: its highest hop, narrowest
+## width, whether its head swung to the other side (and mirrored on the way)
+## and its smallest shadow
+## (relative to the shadow's scale at the start).
+func _watch_turn(visual: Node2D, head: Node2D, shadow: Node2D, frames: int) -> Dictionary:
+	var shadow_rest := shadow.scale.x
+	var watched := {"hop": 0.0, "narrowest": INF, "head_swung": false, "head_flipped": false, "smallest_shadow": INF}
+	for i in frames:
+		await physics_frame
+		watched.hop = maxf(watched.hop, -visual.position.y)
+		watched.narrowest = minf(watched.narrowest, absf(visual.scale.x))
+		watched.head_swung = watched.head_swung or head.position.x < 0.0
+		watched.head_flipped = watched.head_flipped or head.scale.x < 0.0
+		watched.smallest_shadow = minf(watched.smallest_shadow, shadow.scale.x / shadow_rest)
+	return watched
+
+
+## Neither fail animation spins the cat (it shakes off water or trembles
+## instead), the cat never gets narrower than 90% of its width, its ears end
+## pinned back (even when it was fleeing), and it is settled on the floor
+## before the level retries.
+func _test_fail_animations_do_not_spin() -> void:
+	var results: Array[String] = []
+	var ok := true
+	# Soaked; scared; scared while fleeing (the usual way to be caught).
+	for case in 3:
+		var wet := case == 0
+		var arena := _arena(Vector2(900, 2000), Vector2(300, 300))
+		var cat := arena.get_node("Cat") as Cat
+		var visual := cat.get_node("Visual") as Node2D
+		var ears: Array[Node2D] = [cat.get_node("Visual/Head/EarBack"), cat.get_node("Visual/Head/EarFront")]
+		var ear_rest: Array[float] = [ears[0].rotation, ears[1].rotation]
+		await _frames(5)
+		var fleeing := false
+		if case == 2:
+			_add_vacuum(arena, Vector2(420, 300), PackedVector2Array([Vector2(420, 300)]))
+			for i in 30:
+				await physics_frame
+				fleeing = cat.state == Cat.State.FLEE
+				if fleeing:
+					break
+		cat.fall_into("test", null, wet)
+		var turn := 0.0
+		var narrowest := INF
+		var leapt := 0.0
+		for i in int(GameState.FAIL_RETRY_DELAY * FPS) - 6:
+			await physics_frame
+			turn = maxf(turn, absf(visual.rotation))
+			narrowest = minf(narrowest, absf(visual.scale.x))
+			leapt = maxf(leapt, -visual.position.y)
+		var settled := is_zero_approx(visual.rotation) and visual.position.is_zero_approx()
+		var pinned := is_equal_approx(ears[0].rotation, ear_rest[0] * 3.0) and is_equal_approx(ears[1].rotation, ear_rest[1] * 3.0)
+		ok = ok and turn <= Cat.SHAKE_ANGLE + 0.001 and narrowest >= 0.9 and leapt > 40.0 and settled and pinned \
+			and (fleeing or case != 2)
+		results.append("case %d (wet=%s, fled first=%s): max rotation %.2f, narrowest %.2f, leap %.0f, settled %s, ears pinned %s"
+			% [case, wet, fleeing, turn, narrowest, leapt, settled, pinned])
+		await _dispose(arena)
+	_check(ok, "fail_animations_do_not_spin", "; ".join(results))
+
+
+## A cat walking almost straight down (sideways speed under Turn.MIN_SPEED)
 ## towards a robot only slightly to its left (under TURN_MIN_OFFSET) keeps facing
 ## right instead of hopping round.
 func _test_cat_does_not_turn_on_small_sideways_moves() -> void:
@@ -236,17 +317,20 @@ func _test_cat_lands_when_level_ends_mid_turn() -> void:
 	await _frames(60)
 	var shadow_rest := shadow.scale
 	bot.position = Vector2(cat.position.x - 150.0, 300)
+	var head := cat.get_node("Visual/Head") as Node2D
 	var lifted := 0.0
 	for i in 30:
 		await physics_frame
 		lifted = -visual.position.y
-		if lifted > Cat.TURN_HOP * 0.5:
+		if head.scale.x < 0.0:
 			break
 	cat.time_up("test", null)
 	await _frames(30)
-	_check(lifted > Cat.TURN_HOP * 0.5 and is_zero_approx(visual.position.y) and shadow.scale.is_equal_approx(shadow_rest),
-		"cat_lands_when_level_ends_mid_turn", "lifted=%.1f when the level ended, then y=%.1f shadow=%s (rest %s)"
-		% [lifted, visual.position.y, shadow.scale, shadow_rest])
+	var head_home := is_equal_approx(absf(head.position.x), 30.0) and head.scale.x == 1.0
+	_check(lifted > Turn.HOP * 0.5 and is_zero_approx(visual.position.y) and shadow.scale.is_equal_approx(shadow_rest)
+		and head_home, "cat_lands_when_level_ends_mid_turn",
+		"lifted=%.1f when the level ended, then y=%.1f shadow=%s (rest %s) head=%s scale.x=%.0f"
+		% [lifted, visual.position.y, shadow.scale, shadow_rest, head.position, head.scale.x])
 	await _dispose(arena)
 
 

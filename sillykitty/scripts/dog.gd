@@ -32,11 +32,15 @@ var _state_time := 0.0
 var _home := Vector2.ZERO
 var _anim_time := 0.0
 var _walk_phase := 0.0
-var _facing := 1.0
+var _turn := Turn.new()
+## Height of the startled jump when the dog wakes, in pixels (tweened).
+var _jump := 0.0
 var _paw_rest: Array[Vector2] = []
 
 @onready var _bite: Hazard = $Bite
 @onready var _visual: Node2D = $Visual
+@onready var _shadow: Sprite2D = $Shadow
+@onready var _shadow_rest := _shadow.scale
 @onready var _body: Sprite2D = $Visual/Body
 @onready var _body_rest := _body.position
 @onready var _head: Node2D = $Visual/Head
@@ -105,15 +109,17 @@ func _enter(new_state: State) -> void:
 	if new_state == State.CHASE:
 		_bark.play()
 		var tween := create_tween()
-		tween.tween_property(_visual, "position:y", -26.0, 0.12).set_ease(Tween.EASE_OUT)
-		tween.tween_property(_visual, "position:y", 0.0, 0.18).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		tween.tween_property(self, "_jump", 26.0, 0.12).set_ease(Tween.EASE_OUT)
+		tween.tween_property(self, "_jump", 0.0, 0.18).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
 func _process(delta: float) -> void:
 	_anim_time += delta
-	if absf(velocity.x) > 8.0:
-		_facing = signf(velocity.x)
-	_visual.scale.x = move_toward(_visual.scale.x, _facing, delta * 10.0)
+	# Turns round like the cat (see Turn).
+	if absf(velocity.x) > Turn.MIN_SPEED:
+		_turn.want(signf(velocity.x))
+	_turn.advance(delta)
+	_visual.scale.x = _turn.facing
 	var speed := velocity.length()
 	if state == State.SLEEP:
 		_animate_sleep(delta)
@@ -121,6 +127,11 @@ func _process(delta: float) -> void:
 		_animate_walk(delta, speed)
 	else:
 		_animate_stand(delta)
+	# The animations place the head; the turn swings it across the body.
+	_head.position.x *= 1.0 - 2.0 * _turn.head_shift
+	_head.scale.x = -1.0 if _turn.head_mirrored() else 1.0
+	_visual.position.y = -(_jump + _turn.lift * Turn.HOP)
+	_shadow.scale = _shadow_rest * (1.0 - Turn.SHADOW_SHRINK * _turn.lift)
 
 
 func _animate_sleep(delta: float) -> void:
