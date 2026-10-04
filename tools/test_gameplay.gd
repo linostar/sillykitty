@@ -36,7 +36,7 @@ const LEVEL_ROUTES: Array[Array] = [
 	[Vector2(260, 520), Vector2(640, 580), Vector2(1000, 520), Vector2(1200, 390)],
 	[Vector2(700, 140), Vector2(1130, 130), Vector2(1150, 330), Vector2(900, 350), Vector2(200, 350), Vector2(140, 560),
 		Vector2(500, 540), Vector2(900, 520), Vector2(1190, 580)],
-	[Vector2(380, 420), Vector3(480, 180, 400), Vector3(640, 130, 400), Vector2(860, 200), Vector2(1200, 300)],
+	[Vector2(380, 420), Vector3(640, 130, 400), Vector2(860, 200), Vector2(1200, 300)],
 	[Vector2(450, 430), 3.2, Vector2(650, 540), Vector2(820, 570), Vector2(1000, 550), Vector2(1200, 380)],
 	[Vector3(190, 410, INF), Vector3(450, 410, INF), Vector3(760, 430, INF), Vector3(1050, 430, INF),
 		Vector3(1200, 150, INF)],
@@ -705,8 +705,6 @@ func _test_level_routes() -> void:
 		var used := limit - level.time_left
 		var cat_at := cat.global_position
 		var stars: int = outcomes[0] if outcomes.size() == 1 else -1
-		if stars > 0:
-			ratios[i] = limit / used
 		var last := i == count - 1
 		var delay := _game.CLEAR_ADVANCE_DELAY + (_game.END_BANNER_DELAY if last else 0.0)
 		await _frames(int(delay * FPS) - RESTART_MARGIN_FRAMES)
@@ -718,15 +716,40 @@ func _test_level_routes() -> void:
 			"stars=%d (-1 = not cleared) used=%.2f s of %.1f banner='%s' next_loaded=%s cat_at=%s" % [stars, used, limit,
 			banner, loaded, cat_at])
 		await _unload_level()
+		if stars > 0:
+			# The rules use the faster of the route as written and the same route
+			# flown without ever turning back, so a slow route cannot hide a slack limit.
+			ratios[i] = limit / minf(used, await _rushed_clear_time(i))
 	var rules_ok := true
 	for i in count:
 		rules_ok = rules_ok and ratios[i] >= 1.25 and (i > 1 or ratios[i] >= 1.8) and (i < count - 2 or ratios[i] <= 1.5) \
 			and (i == 0 or ratios[i] <= ratios[i - 1])
 	var shown := ", ".join(range(count).map(func(i: int) -> String: return "L%d %.2f" % [i + 1, ratios[i]]))
-	print("test_gameplay: time limit / route clear time per level: " + shown)
+	print("test_gameplay: time limit / fastest route clear time per level: " + shown)
 	_check(rules_ok, "level_time_limits", "limit / route time per level: " + shown)
 	_delete_test_save()
 	_game.load_progress()
+
+
+## Seconds level `index` takes when its route is flown without ever turning back
+## for the cat (INF if that fails). Waits for Game's retry or advance, then unloads.
+func _rushed_clear_time(index: int) -> float:
+	var rushed: Array = LEVEL_ROUTES[index].map(func(step: Variant) -> Variant:
+		return step if step is float else Vector3(step.x, step.y, INF))
+	var level := await _load_level(-1.0, index)
+	var cat := level.get_node("%Cat") as Cat
+	var outcomes: Array[bool] = []
+	level.finished.connect(func(cleared: bool, _stars: int) -> void: outcomes.append(cleared))
+	await _fly_route(rushed, level.get_node("%Robot") as Robot, cat)
+	var settle := 0
+	while outcomes.is_empty() and settle < int(ROUTE_SETTLE * FPS):
+		await physics_frame
+		settle += 1
+	var used := level.time_limit - level.time_left if outcomes == [true] else INF
+	var delay := _game.FAIL_RETRY_DELAY if outcomes != [true] else _game.CLEAR_ADVANCE_DELAY + _game.END_BANNER_DELAY
+	await _frames(int(delay * FPS) + RESTART_MARGIN_FRAMES)
+	await _unload_level()
+	return used
 
 
 ## Flying straight at the bed must not clear any level: each level's walls,

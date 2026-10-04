@@ -13,7 +13,7 @@
 
 [node name="Level06" type="Node2D"]
 script = ExtResource("1_level")
-time_limit = 9.5
+time_limit = 10.0
 hint = "Shh, the dog is sleeping. Don't let kitty wake it!"
 
 [node name="Floor" type="Node2D" parent="."]

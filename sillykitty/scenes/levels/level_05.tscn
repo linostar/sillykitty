@@ -13,7 +13,7 @@
 
 [node name="Level05" type="Node2D"]
 script = ExtResource("1_level")
-time_limit = 28.0
+time_limit = 29.0
 hint = "A long way home. Don't leave kitty behind or it naps!"
 
 [node name="Floor" type="Node2D" parent="."]
