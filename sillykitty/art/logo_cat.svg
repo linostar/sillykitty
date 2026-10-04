@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="228" height="192" viewBox="-6 -12 76 64">
+  <!-- Splash logo: the in-game cat head (cat_head.svg) with its ears (cat_ear.svg)
+       placed as in cat.tscn, authored at 3x so it stays sharp at logo size. -->
+  <g transform="translate(18 18) rotate(-18) translate(-12 -26)">
+    <path d="M3 24 L10 4 Q12 1 14 4 L21 24 Z" fill="#F29E4C" stroke="#3B2C35" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M8 22 L12 10 L16 22 Z" fill="#F48FA0"/>
+  </g>
+  <g transform="translate(46 18) rotate(18) translate(-12 -26)">
+    <path d="M3 24 L10 4 Q12 1 14 4 L21 24 Z" fill="#F29E4C" stroke="#3B2C35" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M8 22 L12 10 L16 22 Z" fill="#F48FA0"/>
+  </g>
+  <ellipse cx="32" cy="27" rx="25" ry="21" fill="#F29E4C" stroke="#3B2C35" stroke-width="3"/>
+  <path d="M26 8 Q28 13 26 17 M32 7 Q34 12 32 16 M38 8 Q40 13 38 17" fill="none" stroke="#D9772B" stroke-width="3.5" stroke-linecap="round"/>
+  <ellipse cx="32" cy="35" rx="10" ry="7" fill="#FFE1B8"/>
+  <ellipse cx="15" cy="33" rx="5" ry="3" fill="#F48FA0" opacity="0.55"/>
+  <ellipse cx="49" cy="33" rx="5" ry="3" fill="#F48FA0" opacity="0.55"/>
+  <ellipse cx="23" cy="26" rx="3.8" ry="5.2" fill="#3B2C35"/>
+  <ellipse cx="41" cy="26" rx="3.8" ry="5.2" fill="#3B2C35"/>
+  <circle cx="24.3" cy="24" r="1.5" fill="#FFFFFF"/>
+  <circle cx="42.3" cy="24" r="1.5" fill="#FFFFFF"/>
+  <path d="M29.5 31 L34.5 31 L32 34 Z" fill="#F48FA0" stroke="#3B2C35" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M27 36 Q29.5 39 32 36 Q34.5 39 37 36" fill="none" stroke="#3B2C35" stroke-width="1.8" stroke-linecap="round"/>
+  <g stroke="#3B2C35" stroke-width="1.4" stroke-linecap="round">
+    <path d="M14 30 L2 28 M14 34 L3 35"/>
+    <path d="M50 30 L62 28 M50 34 L61 35"/>
+  </g>
+</svg>

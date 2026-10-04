@@ -133,6 +133,7 @@ func _run() -> void:
 	await _test_time_up_fails_level()
 	await _test_fail_retries_same_level()
 	await _test_intro_card_not_on_retry()
+	await _test_splash_opens_the_game()
 	await _test_title_room_starts_on_movement()
 	await _test_clear_advances_to_next_level()
 	await _test_level_routes()
@@ -973,12 +974,30 @@ func _check_end_room() -> void:
 ## The main scene is the title room: it shows the restriction sentence, plays the
 ## title music and waits; the first movement loads the furthest unlocked level,
 ## which fades in with the level music (criteria 3 and 16).
-func _test_title_room_starts_on_movement() -> void:
+## The game opens on the splash screen (the main scene): the Silly Kitty logo
+## with the cat head, which loads the title room after SPLASH_TIME, untouched.
+func _test_splash_opens_the_game() -> void:
 	var path: String = ProjectSettings.get_setting("application/run/main_scene")
-	var title := (load(path) as PackedScene).instantiate() as TitleRoom
-	if title == null:
-		_check(false, "title_room_starts_on_movement", "main scene '%s' is not a TitleRoom" % path)
+	var splash := (load(path) as PackedScene).instantiate() as Splash
+	if splash == null:
+		_check(false, "splash_opens_the_game", "main scene '%s' is not a Splash" % path)
 		return
+	root.add_child(splash)
+	current_scene = splash
+	var logo := (splash.get_node("%Title") as Label).text == "Silly Kitty" \
+		and (splash.get_node("%Head") as Sprite2D).texture != null
+	await _frames(int((Splash.SPLASH_TIME - 0.1) * FPS))
+	var still_showing := is_instance_valid(splash) and current_scene == splash
+	await _frames(int(0.1 * FPS) + RESTART_MARGIN_FRAMES)
+	var titled := current_scene != null and current_scene.scene_file_path == GameState.TITLE_ROOM_PATH \
+		and _game.music_playing() == _game.title_music
+	_check(logo and still_showing and titled, "splash_opens_the_game", "logo=%s still showing before %.1f s=%s then title room=%s (scene %s)"
+		% [logo, Splash.SPLASH_TIME, still_showing, titled, current_scene.scene_file_path if current_scene else "none"])
+	await _unload_level()
+
+
+func _test_title_room_starts_on_movement() -> void:
+	var title := (load(GameState.TITLE_ROOM_PATH) as PackedScene).instantiate() as TitleRoom
 	root.add_child(title)
 	current_scene = title
 	var tagline := (title.get_node("%Tagline") as Label).text

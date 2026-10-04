@@ -1,6 +1,6 @@
 class_name TitleRoom
 extends Node2D
-## The title room (main scene). The cat and robot are live; the player's first
+## The title room, shown after the splash screen. The cat and robot are live; the player's first
 ## movement starts the game at the furthest unlocked level. No other input exists.
 
 ## The jam restriction, shown on the title (plan criterion 16).

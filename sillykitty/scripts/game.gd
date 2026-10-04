@@ -1,7 +1,7 @@
 class_name GameState
 extends Node
 ## Autoload "Game" (scenes/game.tscn): the ordered level list and linear
-## progression (title -> furthest level; clear -> next level, fail -> retry, last
+## progression (splash -> title -> furthest level; clear -> next level, fail -> retry, last
 ## level -> end room -> level 1), the user:// save of the furthest unlocked level
 ## and the best stars per level, the music and a fade-in after every scene change.
 ## Levels only report their outcome; every transition happens here, without input.
@@ -23,6 +23,7 @@ const LEVEL_PATHS: Array[String] = [
 const SAVE_PATH := "user://progress.json"
 const FAIL_RETRY_DELAY := 1.6
 const CLEAR_ADVANCE_DELAY := 2.5
+const TITLE_ROOM_PATH := "res://scenes/title_room.tscn"
 const END_ROOM_PATH := "res://scenes/end_room.tscn"
 ## Seconds the end room shows before level 1 loads.
 const END_ROOM_TIME := 7.0
@@ -106,7 +107,13 @@ func start_game() -> void:
 	_go_to(furthest_index)
 
 
-## Called by the title and end rooms when they open.
+## Called by the splash screen when it is done.
+func show_title() -> void:
+	print("[Game] Loading the title room")
+	_change_scene(TITLE_ROOM_PATH)
+
+
+## Called by the splash screen and the title and end rooms when they open.
 func enter_room(room_name: String) -> void:
 	print("[Game] Entered the %s" % room_name)
 	_play(title_music)
