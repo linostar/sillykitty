@@ -91,6 +91,7 @@ func _run() -> void:
 	_delete_test_save()
 	await _test_robot_moves_with_input()
 	await _test_cat_chases_nearby_robot()
+	await _test_cat_turns_round_with_a_hop()
 	await _test_cat_ignores_distant_robot()
 	await _test_cat_plays_with_distraction_then_returns()
 	await _test_hazard_fails_cat()
@@ -167,6 +168,29 @@ func _test_cat_chases_nearby_robot() -> void:
 	var distance := cat.position.distance_to(bot.position)
 	_check(cat.state == Cat.State.CHASE_ROBOT and distance < 100.0, "cat_chases_nearby_robot",
 		"state=%s distance=%.1f" % [Cat.State.keys()[cat.state], distance])
+	await _dispose(arena)
+
+
+## Turning round is a hop that mirrors the cat at its top, never a paper-thin
+## squash through zero width, and it ends facing the new way at full width.
+func _test_cat_turns_round_with_a_hop() -> void:
+	var arena := _arena(Vector2(500, 300), Vector2(300, 300))
+	var cat := arena.get_node("Cat") as Cat
+	var bot := arena.get_node("Robot") as Robot
+	var visual := cat.get_node("Visual") as Node2D
+	await _frames(60)
+	var facing_right := is_equal_approx(visual.scale.x, 1.0)
+	bot.position = Vector2(cat.position.x - 150.0, 300)
+	var highest := 0.0
+	var narrowest := INF
+	for i in 60:
+		await physics_frame
+		highest = maxf(highest, -visual.position.y)
+		narrowest = minf(narrowest, absf(visual.scale.x))
+	var turned := is_equal_approx(visual.scale.x, -1.0) and is_equal_approx(visual.position.y, 0.0)
+	_check(facing_right and turned and highest > Cat.TURN_HOP * 0.8 and narrowest >= 1.0 - Cat.TURN_SQUEEZE - 0.01,
+		"cat_turns_round_with_a_hop", "started facing right=%s, ended turned=%s (scale.x=%.2f), hop=%.1f, narrowest=%.2f"
+		% [facing_right, turned, visual.scale.x, highest, narrowest])
 	await _dispose(arena)
 
 

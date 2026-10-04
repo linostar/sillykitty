@@ -64,7 +64,13 @@ gdscript/warnings/function_used_as_property=2
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/size/window_width_override=1536
+window/size/window_height_override=864
 window/stretch/mode="canvas_items"
+
+[gui]
+
+theme/custom_font="res://fonts/fredoka_semibold.tres"
 
 [input]
 
@@ -107,12 +113,7 @@ move_down={
 
 [rendering]
 
-environment/defaults/default_clear_color=Color(0.91, 0.827, 0.682, 1)
-
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-
-[gui]
-
-theme/custom_font="res://fonts/fredoka_semibold.tres"
+environment/defaults/default_clear_color=Color(0.91, 0.827, 0.682, 1)

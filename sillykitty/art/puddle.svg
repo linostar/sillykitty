@@ -1,7 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="112" viewBox="0 0 200 112">
+  <!-- damp floor round the edge -->
+  <path d="M26 36 C38 8 84 4 104 12 C128 0 176 8 188 36 C202 64 182 98 146 102 C122 110 94 106 76 104 C44 110 6 96 6 68 C6 54 16 44 26 36 Z" fill="#3B2C35" opacity="0.08"/>
+  <!-- splash droplets -->
+  <ellipse cx="188" cy="92" rx="6" ry="3.5" fill="#6EC1E4" stroke="#3B2C35" stroke-width="2"/>
+  <ellipse cx="14" cy="30" rx="5" ry="3" fill="#6EC1E4" stroke="#3B2C35" stroke-width="2"/>
+  <ellipse cx="28" cy="18" rx="3" ry="2" fill="#6EC1E4" stroke="#3B2C35" stroke-width="1.5"/>
+  <!-- water -->
   <path d="M30 40 C40 14 82 10 104 18 C126 6 170 12 182 38 C196 62 178 92 146 96 C124 104 96 100 78 98 C48 104 14 92 12 68 C10 56 20 48 30 40 Z" fill="#6EC1E4" stroke="#3B2C35" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M40 46 C52 30 76 28 92 32" fill="none" stroke="#A8DDF2" stroke-width="6" stroke-linecap="round"/>
-  <path d="M128 30 C144 28 160 32 166 42" fill="none" stroke="#A8DDF2" stroke-width="5" stroke-linecap="round"/>
-  <ellipse cx="120" cy="70" rx="16" ry="5" fill="#FFFFFF" opacity="0.45"/>
-  <ellipse cx="62" cy="76" rx="9" ry="3" fill="#FFFFFF" opacity="0.4"/>
+  <!-- deeper water in the middle, shaded under the far rim -->
+  <path d="M44 50 C54 30 86 28 104 34 C124 24 160 30 168 46 C178 64 162 84 138 86 C118 92 96 88 80 86 C56 90 32 80 32 66 C32 58 38 54 44 50 Z" fill="#4FA3CC" opacity="0.55"/>
+  <path d="M34 42 C46 22 80 18 102 26 C124 14 164 20 176 40" fill="none" stroke="#4FA3CC" stroke-width="5" stroke-linecap="round" opacity="0.6"/>
+  <!-- ripple rings -->
+  <ellipse cx="118" cy="64" rx="30" ry="11" fill="none" stroke="#A8DDF2" stroke-width="2.5" opacity="0.9"/>
+  <ellipse cx="118" cy="64" rx="15" ry="5" fill="none" stroke="#A8DDF2" stroke-width="2.5"/>
+  <ellipse cx="60" cy="72" rx="12" ry="4" fill="none" stroke="#A8DDF2" stroke-width="2" opacity="0.8"/>
+  <!-- light near the shallow front edge -->
+  <path d="M40 86 C60 94 90 92 104 90" fill="none" stroke="#A8DDF2" stroke-width="4" stroke-linecap="round"/>
+  <path d="M130 90 C150 88 166 80 172 70" fill="none" stroke="#A8DDF2" stroke-width="3" stroke-linecap="round"/>
+  <!-- sky reflections -->
+  <path d="M42 46 C54 32 76 30 92 34" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+  <path d="M130 30 C146 28 160 32 166 42" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+  <circle cx="100" cy="40" r="2.5" fill="#FFFFFF" opacity="0.8"/>
+  <circle cx="152" cy="52" r="2" fill="#FFFFFF" opacity="0.7"/>
 </svg>

@@ -27,6 +27,15 @@ const WET_TINT := Color("#9fd4ee")
 const SULK_TINT := Color("#c9c0cf")
 ## Physics layer of walls and furniture; blocks the cat's line of sight.
 const WALL_LAYER_MASK := 1
+## Turning round is a quick hop: the cat springs up squeezed and lands facing
+## the other way, mirrored at the top of the hop.
+const TURN_TIME := 0.24
+const TURN_HOP := 8.0
+const TURN_SQUEEZE := 0.35
+## Sideways speed (and robot offset) needed to turn, so a cat walking up or down
+## does not hop back and forth on every small wobble.
+const TURN_MIN_SPEED := 20.0
+const TURN_MIN_OFFSET := 24.0
 
 @export var tuning: CatTuning
 @export var robot: Robot
@@ -51,6 +60,8 @@ var _flee_stall := 0.0
 var _anim_time := 0.0
 var _walk_phase := 0.0
 var _facing := 1.0
+var _turn_to := 1.0
+var _turn_left := 0.0
 var _ear_twitch_in := 0.0
 var _paw_rest: Array[Vector2] = []
 var _ear_rest: Array[float] = []
@@ -375,6 +386,7 @@ func _clear() -> void:
 	reached_goal.emit()
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_visual, "scale", Vector2(_facing * 1.08, 0.85), 0.4).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(_visual, "position:y", 0.0, 0.2)
 	tween.tween_property(_tail, "rotation", 1.2, 0.5)
 	tween.tween_property(_head, "rotation", 0.25, 0.5)
 
@@ -393,6 +405,7 @@ func _play_fail_animation(wet: bool) -> void:
 func _play_nap_animation() -> void:
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_visual, "scale", Vector2(_facing * 1.12, 0.72), 0.6).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(_visual, "position:y", 0.0, 0.2)
 	tween.tween_property(_head, "rotation", 0.55, 0.6)
 	tween.tween_property(_head, "position:y", _head.position.y + 12.0, 0.6)
 	tween.tween_property(_tail, "rotation", 1.6, 0.8)
@@ -403,6 +416,7 @@ func _play_nap_animation() -> void:
 func _play_sulk_animation() -> void:
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_visual, "scale", Vector2(_facing * 1.1, 0.8), 0.4).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(_visual, "position:y", 0.0, 0.2)
 	tween.tween_property(_visual, "modulate", SULK_TINT, 0.4)
 	tween.tween_property(_head, "rotation", 0.45, 0.4)
 	tween.tween_property(_tail, "rotation", 1.3, 0.5)
@@ -415,7 +429,7 @@ func _process(delta: float) -> void:
 	if is_over():
 		_dust.emitting = false
 		return
-	_update_facing(delta)
+	var hop := _update_facing(delta)
 	var engaged := state == State.DISTRACTED and _engage_left > 0.0
 	var speed := velocity.length()
 	# Dust puffs while running.
@@ -427,7 +441,7 @@ func _process(delta: float) -> void:
 	else:
 		_animate_sit(delta)
 	if not engaged:
-		_visual.position.y = 0.0
+		_visual.position.y = -hop
 	if state == State.FLEE:
 		# Ears flat back while running scared.
 		for i in _ears.size():
@@ -436,12 +450,27 @@ func _process(delta: float) -> void:
 	_update_ear_twitch(delta)
 
 
-func _update_facing(delta: float) -> void:
-	if absf(velocity.x) > 8.0:
-		_facing = signf(velocity.x)
-	elif state == State.CHASE_ROBOT and not is_equal_approx(robot.global_position.x, global_position.x):
-		_facing = signf(robot.global_position.x - global_position.x)
-	_visual.scale.x = move_toward(_visual.scale.x, _facing, delta * 10.0)
+## Starts a turn-around hop when the cat should face the other way and plays
+## it; returns the hop height.
+func _update_facing(delta: float) -> float:
+	var wanted := _facing
+	var robot_offset := robot.global_position.x - global_position.x
+	if absf(velocity.x) > TURN_MIN_SPEED:
+		wanted = signf(velocity.x)
+	elif state == State.CHASE_ROBOT and absf(robot_offset) > TURN_MIN_OFFSET:
+		wanted = signf(robot_offset)
+	if _turn_left <= 0.0 and wanted != _facing:
+		_turn_to = wanted
+		_turn_left = TURN_TIME
+	var lift := 0.0
+	if _turn_left > 0.0:
+		_turn_left = maxf(0.0, _turn_left - delta)
+		var progress := 1.0 - _turn_left / TURN_TIME
+		if progress >= 0.5:
+			_facing = _turn_to
+		lift = sin(progress * PI)
+	_visual.scale = Vector2(_facing * (1.0 - TURN_SQUEEZE * lift), 1.0 + TURN_SQUEEZE * 0.4 * lift)
+	return lift * TURN_HOP
 
 
 func _animate_walk(delta: float, speed: float) -> void:

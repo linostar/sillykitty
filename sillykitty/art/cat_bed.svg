@@ -1,6 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="140" height="96" viewBox="0 0 140 96">
-  <ellipse cx="70" cy="52" rx="64" ry="38" fill="#B98AE0" stroke="#3B2C35" stroke-width="3"/>
-  <ellipse cx="70" cy="56" rx="46" ry="25" fill="#D7B8F0" stroke="#3B2C35" stroke-width="2.5"/>
-  <path d="M40 50 Q70 40 100 50" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
-  <ellipse cx="38" cy="26" rx="14" ry="5" fill="#FFFFFF" opacity="0.35" transform="rotate(-18 38 26)"/>
+  <!-- round bolster bed, seen from above and in front -->
+  <ellipse cx="70" cy="56" rx="64" ry="36" fill="#B98AE0" stroke="#3B2C35" stroke-width="3"/>
+  <path d="M10 58 C14 82 40 92 70 92 C100 92 126 82 130 58" fill="none" stroke="#9A6CC4" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <ellipse cx="70" cy="52" rx="56" ry="29" fill="none" stroke="#D7B8F0" stroke-width="2" stroke-dasharray="5 5" stroke-linecap="round"/>
+  <!-- hollow: the inside of the back bolster -->
+  <ellipse cx="70" cy="50" rx="44" ry="21" fill="#9A6CC4" stroke="#3B2C35" stroke-width="2.5"/>
+  <!-- cushion, sunk below the rim -->
+  <ellipse cx="70" cy="56" rx="40" ry="16" fill="#D7B8F0" stroke="#3B2C35" stroke-width="2.5"/>
+  <ellipse cx="70" cy="56" rx="29" ry="10" fill="none" stroke="#B98AE0" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round"/>
+  <!-- embroidered paw print -->
+  <g fill="#B98AE0" opacity="0.8">
+    <ellipse cx="70" cy="59" rx="6" ry="3.6"/>
+    <ellipse cx="62" cy="53.5" rx="2.2" ry="1.6"/>
+    <ellipse cx="67.5" cy="51.5" rx="2.2" ry="1.6"/>
+    <ellipse cx="72.5" cy="51.5" rx="2.2" ry="1.6"/>
+    <ellipse cx="78" cy="53.5" rx="2.2" ry="1.6"/>
+  </g>
+  <!-- highlights on the bolster -->
+  <path d="M22 40 C30 28 46 22 60 21" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity="0.45"/>
+  <ellipse cx="108" cy="30" rx="8" ry="3" fill="#FFFFFF" opacity="0.3" transform="rotate(16 108 30)"/>
 </svg>

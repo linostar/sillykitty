@@ -4,8 +4,9 @@ extends CanvasLayer
 ## card, the outcome banner with its star rating and confetti. Display only; it
 ## never takes input.
 
-const NORMAL_COLOR := Color("#3B2C35")
-const WARNING_COLOR := Color("#E8574A")
+## Countdown digits on the dark timer pill: robot glow, alert red near the end.
+const NORMAL_COLOR := Color("#7CFFC4")
+const WARNING_COLOR := Color("#FF6B6B")
 const STAR_EARNED := Color.WHITE
 const STAR_MISSING := Color(0.231, 0.173, 0.208, 0.3)
 const INTRO_HOLD := 1.4
@@ -18,6 +19,7 @@ const STAR_STEP := 0.3
 
 @onready var _level_label: Label = %LevelLabel
 @onready var _timer_label: Label = %TimerLabel
+@onready var _timer_panel: PanelContainer = %TimerPanel
 @onready var _hint: Label = %Hint
 @onready var _banner: Label = %Banner
 @onready var _panel: PanelContainer = %BannerPanel
@@ -60,9 +62,9 @@ func set_time(seconds_left: float, warning: bool) -> void:
 ## Ticks and gives the countdown a little pulse.
 func play_tick() -> void:
 	_tick.play()
-	_timer_label.pivot_offset = _timer_label.size * Vector2(1.0, 0.5)
-	_timer_label.scale = Vector2(1.3, 1.3)
-	create_tween().tween_property(_timer_label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_timer_panel.pivot_offset = _timer_panel.size / 2.0
+	_timer_panel.scale = Vector2(1.2, 1.2)
+	create_tween().tween_property(_timer_panel, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 ## Shows "Level N" and the hint in the middle of the screen, then fades them out.

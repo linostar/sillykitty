@@ -14,7 +14,7 @@ flees threats and naps; lure it to its bed. Plan and acceptance criteria: `.clau
 ```
 CLAUDE.md
 .claude/plans/main.md      plan + acceptance criteria
-sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720, canvas_items stretch, keep aspect)
+sillykitty/                Godot 4.7.1 project (Compatibility renderer, 1280x720, canvas_items stretch, keep aspect; the desktop window opens at 1536x864 physical pixels, i.e. half that in points on a 2x Retina screen)
   art/                     hand-authored SVG sprite parts
   audio/sfx/               generated WAV sound effects (tools/sfx.py), committed
   audio/music/             generated MP3 music loops + their loop settings in .import (tools/music.py), committed
@@ -69,7 +69,8 @@ Gotchas:
 - Reach the autoload with `get_node(GameState.AUTOLOAD_PATH) as GameState`, never the global name `Game`: test scripts compile before autoloads exist, so any script naming `Game` breaks every test.
 - `Level` (`scripts/level.gd`) exports `time_limit` and `hint`, runs the countdown (starts on the robot's `started_moving`, red and ticking for the last 10 s or the last 40% of a shorter limit, time-up = fail), awards 1-3 stars from the time left (3 at >= 20% of the limit, 2 at >= 10%) and only reports `finished(cleared, stars)`; `Game` decides what loads next. No input is ever needed to continue.
 - Every level instances `scenes/hud.tscn` (unique name `%Hud`) and marks its robot and cat with unique names `%Robot` and `%Cat`.
-- Juice: the HUD shows a "Level N" intro card (not on retries), the outcome banner on a panel, stars popping in with a rising chime, and a confetti burst on a clear; the countdown pulses on each tick; the level root shakes on a fail (the HUD is a CanvasLayer, so it stays still); the cat kicks up dust while running.
+- HUD top bar (in the band above the room): "Level N/8" on an orange pill, the level hint in outlined text, and the countdown on a dark robot-screen pill (glow digits, red in the warning, the pill pulses on each tick).
+- Juice: the HUD shows a "Level N" intro card (not on retries), the outcome banner on a panel, stars popping in with a rising chime, and a confetti burst on a clear; the countdown pulses on each tick; the level root shakes on a fail (the HUD is a CanvasLayer, so it stays still); the cat kicks up dust while running and turns round with a squeeze-and-hop that mirrors it at the top (`TURN_*` constants in `cat.gd`).
 - Levels: `RoomFloor` draws the floor; border `Wall`s go under `Room`; furniture `Wall`s, the robot and the cat go under the y-sorted `Actors` node. `Wall` origin is the bottom-centre of its footprint. `Wall` and `RoomFloor` are `@tool` scripts, so levels can be laid out visually in the editor.
 - Positions of the robot, cat and props are their feet; visuals are drawn upward from there.
 - Rooms are laid out in 1280x720 world coordinates but drawn at `GameState.ROOM_SCALE` (0.87), centred and resting on the screen bottom (the Game autoload sets the viewport's `canvas_transform` once). The band this frees above the room keeps actors by the top wall fully visible (sprites rise up to ~141 px above their feet) and holds the HUD; CanvasLayers (HUD, room text) stay unscaled in screen coordinates. The backdrop around the room is the project clear colour (`floor_line`). The title and end-room labels are positioned for this scale; re-check them if it changes.
@@ -89,7 +90,7 @@ Gotchas:
 - Vacuum parts (3/4 view): `vacuum_body`, `vacuum_brush` (x2, spun under a 0.45 y-squash for perspective), `vacuum_light`.
 - Dog parts (side view facing right): `dog_body`, `dog_head`, `dog_eyelid` (shown while asleep), `dog_ear` (pivot at the top), `dog_tail` (pivot at the base, bottom-right), `dog_paw` (x4).
 - Thought bubble: `bubble`, icons `icon_idle`, `icon_heart` (chase), `icon_alert` (flee), `icon_zzz` (nap, also the dog's snore); distracted and go-to-bed reuse `yarn` and `cat_bed`.
-- Props: `puddle` (hazard), `cat_bed` (goal), `yarn` (distraction); HUD: `star`. Confetti is `scenes/confetti.tscn` (CPUParticles2D squares in palette colours). Walls and floors are drawn in code (`wall.gd`, `room_floor.gd`).
+- Props: `puddle` (hazard), `cat_bed` (goal), `yarn` (distraction); HUD: `star`. Confetti is `scenes/confetti.tscn` (CPUParticles2D squares in palette colours). Walls and floors are drawn in code (`wall.gd`, `room_floor.gd`); `Wall.kind` draws a plain wall, a sofa (backrest, armrests, seat cushions) or a cabinet (planked top, drawers with knobs), and level furniture uses SOFA or CABINET.
 
 ### Palette
 | Token | Hex | Use |
@@ -110,9 +111,11 @@ Gotchas:
 | wall_front | `#A77B5A` | wall / furniture front face |
 | water | `#6EC1E4` | puddle hazard |
 | water_light | `#A8DDF2` | puddle ripples |
+| water_deep | `#4FA3CC` | puddle depth shading |
 | danger | `#E8574A` | hazard highlight |
 | goal | `#B98AE0` | cat bed rim (reserved for the goal) |
 | goal_light | `#D7B8F0` | cat bed cushion |
+| goal_shade | `#9A6CC4` | cat bed hollow and bolster shading |
 | sofa_top | `#8FBF8A` | sofa footprint |
 | sofa_front | `#6E9E69` | sofa front face |
 | yarn_dark | `#C94848` | yarn strands (ball uses accent_red) |

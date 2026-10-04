@@ -67,6 +67,7 @@ y_sort_enabled = true
 [node name="Sofa1" type="StaticBody2D" parent="Actors"]
 position = Vector2(1120, 140)
 script = ExtResource("3_wall")
+kind = 1
 size = Vector2(200, 60)
 top_color = Color(0.561, 0.749, 0.541, 1)
 front_color = Color(0.431, 0.62, 0.412, 1)
@@ -74,6 +75,7 @@ front_color = Color(0.431, 0.62, 0.412, 1)
 [node name="Furniture2" type="StaticBody2D" parent="Actors"]
 position = Vector2(1120, 680)
 script = ExtResource("3_wall")
+kind = 2
 size = Vector2(200, 50)
 
 [node name="Vacuum1" parent="Actors" instance=ExtResource("9_vacuum")]

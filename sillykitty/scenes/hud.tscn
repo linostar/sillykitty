@@ -26,43 +26,103 @@ shadow_color = Color(0.231, 0.173, 0.208, 0.25)
 shadow_size = 8
 shadow_offset = Vector2(0, 6)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_level"]
+content_margin_left = 20.0
+content_margin_top = 2.0
+content_margin_right = 20.0
+content_margin_bottom = 4.0
+bg_color = Color(0.949, 0.62, 0.298, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.231, 0.173, 0.208, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0.231, 0.173, 0.208, 0.25)
+shadow_size = 2
+shadow_offset = Vector2(0, 5)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_timer"]
+content_margin_left = 16.0
+content_margin_top = 2.0
+content_margin_right = 16.0
+content_margin_bottom = 4.0
+bg_color = Color(0.137, 0.212, 0.271, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.231, 0.173, 0.208, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0.231, 0.173, 0.208, 0.25)
+shadow_size = 2
+shadow_offset = Vector2(0, 5)
+
 [node name="Hud" type="CanvasLayer"]
 script = ExtResource("1_hud")
 time_up_sound = ExtResource("4_timeup")
 
-[node name="LevelLabel" type="Label" parent="."]
-unique_name_in_owner = true
+[node name="LevelPanel" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(0, 64)
 offset_left = 16.0
-offset_top = 2.0
-offset_right = 316.0
-offset_bottom = 30.0
-theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
-theme_override_font_sizes/font_size = 20
+offset_top = 10.0
+offset_right = 16.0
+offset_bottom = 74.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_level")
+
+[node name="LevelLabel" type="Label" parent="LevelPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_constants/outline_size = 10
+theme_override_font_sizes/font_size = 36
 text = "Level 1/1"
+horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Hint" type="Label" parent="."]
 unique_name_in_owner = true
-offset_left = 320.0
-offset_top = 2.0
-offset_right = 960.0
-offset_bottom = 30.0
+offset_left = 230.0
+offset_top = 10.0
+offset_right = 1050.0
+offset_bottom = 74.0
 theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
-theme_override_font_sizes/font_size = 20
+theme_override_colors/font_outline_color = Color(1, 1, 1, 1)
+theme_override_constants/outline_size = 10
+theme_override_font_sizes/font_size = 30
 text = "Hint"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="TimerLabel" type="Label" parent="."]
+[node name="TimerPanel" type="PanelContainer" parent="."]
 unique_name_in_owner = true
-offset_left = 964.0
-offset_top = 1.0
-offset_right = 1264.0
-offset_bottom = 31.0
-theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
-theme_override_font_sizes/font_size = 24
+custom_minimum_size = Vector2(150, 64)
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -166.0
+offset_top = 10.0
+offset_right = -16.0
+offset_bottom = 74.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_timer")
+
+[node name="TimerLabel" type="Label" parent="TimerPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.486, 1, 0.769, 1)
+theme_override_font_sizes/font_size = 44
 text = "0:00"
-horizontal_alignment = 2
+horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Intro" type="VBoxContainer" parent="."]
