@@ -1010,8 +1010,10 @@ func _test_title_room_starts_on_movement() -> void:
 	root.add_child(title)
 	current_scene = title
 	var tagline := (title.get_node("%Tagline") as Label).text
+	var goal := (title.get_node("%Goal") as Label).text
 	await _frames(FPS)
 	var waiting := is_instance_valid(title) and current_scene == title and tagline == TitleRoom.RESTRICTION_TEXT \
+		and goal == TitleRoom.GOAL_TEXT \
 		and _game.music_playing() == _game.title_music
 	Input.action_press("move_right")
 	await _frames(1)

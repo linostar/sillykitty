@@ -77,22 +77,33 @@ text = "Silly Kitty"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="Goal" type="Label" parent="Ui"]
+unique_name_in_owner = true
+offset_top = 134.0
+offset_right = 1280.0
+offset_bottom = 178.0
+theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
+theme_override_font_sizes/font_size = 38
+text = "Goal"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="Tagline" type="Label" parent="Ui"]
 unique_name_in_owner = true
-offset_top = 136.0
+offset_top = 178.0
 offset_right = 1280.0
-offset_bottom = 176.0
+offset_bottom = 210.0
 theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 26
 text = "Restriction"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Progress" type="Label" parent="Ui"]
 unique_name_in_owner = true
-offset_top = 178.0
+offset_top = 210.0
 offset_right = 1280.0
-offset_bottom = 214.0
+offset_bottom = 240.0
 theme_override_colors/font_color = Color(0.373, 0.663, 0.761, 1)
 theme_override_font_sizes/font_size = 24
 text = "Progress"
@@ -100,21 +111,11 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Hint" type="Label" parent="Ui"]
-offset_top = 596.0
+offset_top = 610.0
 offset_right = 1280.0
-offset_bottom = 636.0
+offset_bottom = 650.0
 theme_override_colors/font_color = Color(0.231, 0.173, 0.208, 1)
-theme_override_font_sizes/font_size = 32
-text = "Move the robot to start!"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Controls" type="Label" parent="Ui"]
-offset_top = 636.0
-offset_right = 1280.0
-offset_bottom = 670.0
-theme_override_colors/font_color = Color(0.373, 0.663, 0.761, 1)
-theme_override_font_sizes/font_size = 22
-text = "Arrow keys, WASD or a gamepad stick"
+theme_override_font_sizes/font_size = 30
+text = "Move to start: arrows, WASD or gamepad"
 horizontal_alignment = 1
 vertical_alignment = 1
