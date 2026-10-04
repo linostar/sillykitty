@@ -5,7 +5,7 @@ extends SceneTree
 ## Quitting while a sound plays races the audio thread and reports leaked
 ## playbacks, so the scene (with any meow, hum or spray still playing) is freed
 ## and the Game autoload's music stopped, and they get real time to be released
-## first (see the CLAUDE.md gotcha).
+## first.
 
 const AUDIO_RELEASE_MSEC := 500
 

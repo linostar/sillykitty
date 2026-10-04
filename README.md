@@ -48,7 +48,6 @@ The browser tests need a one-time `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm --pref
 | `sillykitty/` | Godot project: `scenes/`, `scripts/`, `art/` (SVG), `audio/`, `fonts/`, `data/` |
 | `tools/` | tests, restriction checker, sound and music synthesisers, web build and browser tests |
 | `submission/` | itch.io cover and screenshots |
-| `CLAUDE.md` | architecture, conventions and gotchas in detail |
 
 ## Credits
 
