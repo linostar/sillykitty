@@ -13,7 +13,7 @@
 
 [node name="Level02" type="Node2D"]
 script = ExtResource("1_level")
-time_limit = 26.0
+time_limit = 24.0
 hint = "Yarn! Kitty can't resist it. Steer wide or lose time."
 
 [node name="Floor" type="Node2D" parent="."]

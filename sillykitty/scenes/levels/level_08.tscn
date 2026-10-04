@@ -14,7 +14,7 @@
 
 [node name="Level08" type="Node2D"]
 script = ExtResource("1_level")
-time_limit = 12.0
+time_limit = 9.0
 hint = "Finale! Dog, vacuum and puddles. Hurry home!"
 
 [node name="Floor" type="Node2D" parent="."]

@@ -22,23 +22,24 @@ const RESTART_MARGIN_FRAMES := 12
 const TEST_SAVE_PATH := "user://test_progress.json"
 
 ## One scripted solution per level (index = level number - 1), flown only through
-## the move_* actions: Vector2 = fly to that point, Vector3 = fly to (x, y) but
-## turn back for the cat whenever it is more than z px behind, float = hover for
-## that many seconds. Their clear times set the levels' time limits (see
-## _test_level_routes for the rules).
+## the move_* actions in 8 directions, like a keyboard: Vector2 = fly to that
+## point, Vector3 = fly to (x, y) but turn back for the cat whenever it is more
+## than z px behind (INF: never), float = hover for that many seconds. Like a
+## player, the route also turns back whenever the cat has lost track of the robot.
+## Their clear times set the levels' time limits (see _test_level_routes for the rules).
 const LEVEL_ROUTES: Array[Array] = [
 	[Vector2(380, 470), Vector2(500, 270), Vector2(780, 260), Vector2(920, 380), Vector2(1180, 470)],
-	[Vector2(190, 400), Vector2(210, 200), Vector2(600, 262), Vector3(1000, 262, 100), Vector2(1200, 190)],
+	[Vector2(190, 430), Vector2(190, 170), Vector3(480, 190, 400), 1.5, Vector2(900, 240), Vector2(1200, 190)],
 	[Vector2(300, 470), Vector3(430, 470, 200), Vector3(440, 300, 150), Vector3(560, 260, 150), Vector3(690, 300, 150),
 		Vector3(690, 420, 150), Vector3(820, 470, 150), Vector3(950, 420, 150), Vector3(950, 300, 150),
 		Vector3(1080, 250, 150), Vector2(1200, 220)],
 	[Vector2(260, 520), Vector2(640, 580), Vector2(1000, 520), Vector2(1200, 390)],
 	[Vector2(700, 140), Vector2(1130, 130), Vector2(1150, 330), Vector2(900, 350), Vector2(200, 350), Vector2(140, 560),
 		Vector2(500, 540), Vector2(900, 520), Vector2(1190, 580)],
-	[Vector2(380, 420), Vector3(480, 180, 180), Vector3(640, 130, 160), Vector2(860, 200), Vector2(1200, 300)],
+	[Vector2(380, 420), Vector3(480, 180, 400), Vector3(640, 130, 400), Vector2(860, 200), Vector2(1200, 300)],
 	[Vector2(450, 430), 3.2, Vector2(650, 540), Vector2(820, 570), Vector2(1000, 550), Vector2(1200, 380)],
-	[Vector2(190, 400), Vector2(440, 430), Vector2(740, 440), Vector3(1040, 430, 150), Vector3(1040, 200, 120),
-		Vector2(1200, 150)],
+	[Vector3(190, 410, INF), Vector3(450, 410, INF), Vector3(760, 430, INF), Vector3(1050, 430, INF),
+		Vector3(1200, 150, INF)],
 ]
 ## Without a Vector3 pace, the route turns back for a cat more than this far behind.
 const ROUTE_PACE := 300.0
@@ -47,6 +48,10 @@ const ROUTE_REACH := 14.0
 const ROUTE_STEP_TIMEOUT := 20.0
 ## Seconds the cat gets to walk into its bed after the route ends.
 const ROUTE_SETTLE := 15.0
+## Level 5 played by racing ahead without ever waiting for the cat: the cat
+## loses sight of the robot behind the long walls and dozes off.
+const LEVEL_05_RACE: Array = [Vector3(1130, 170, INF), Vector3(1150, 340, INF), Vector3(200, 350, INF),
+	Vector3(150, 600, INF), 10.0]
 ## The mechanics each level must have and the one it introduces (criterion 24).
 const LEVEL_MECHANICS: Array[Array] = [
 	["puddle"], ["yarn"], ["puddle"], ["vacuum"], ["puddle", "yarn"], ["dog"],
@@ -92,6 +97,7 @@ func _run() -> void:
 	await _test_robot_crosses_hazard_unharmed()
 	await _test_cat_recovers_when_distraction_removed()
 	await _test_cat_ignores_target_behind_wall()
+	await _test_cat_ignores_robot_behind_wall()
 	await _test_cat_gives_up_unreachable_target()
 	await _test_cat_walks_into_nearby_bed()
 	_test_thought_bubble_icons()
@@ -109,6 +115,7 @@ func _run() -> void:
 	await _test_nap_waits_for_first_movement_then_fails()
 	await _test_nap_drains_while_busy()
 	_test_stars_for_time_left()
+	_test_warning_seconds()
 	_test_next_index()
 	_test_save_round_trip()
 	_test_missing_save_starts_fresh()
@@ -118,6 +125,8 @@ func _run() -> void:
 	await _test_fail_retries_same_level()
 	await _test_clear_advances_to_next_level()
 	await _test_level_routes()
+	await _test_level_beelines_fail()
+	await _test_level_05_racing_ahead_naps()
 	_game.save_path = _real_save_path
 	# The audio thread releases freed sound playbacks in real time, and --fixed-fps
 	# frames take almost no real time; quitting too early reports them as leaks.
@@ -251,6 +260,18 @@ func _test_cat_ignores_target_behind_wall() -> void:
 	await _frames(60)
 	_check(cat.state == Cat.State.CHASE_ROBOT, "cat_ignores_target_behind_wall",
 		"state=%s" % Cat.State.keys()[cat.state])
+	await _dispose(arena)
+
+
+func _test_cat_ignores_robot_behind_wall() -> void:
+	# The robot is well inside the interest radius, but a wall hides it.
+	var arena := _arena(Vector2(250, 120), Vector2(250, 300))
+	var cat := arena.get_node("Cat") as Cat
+	_add_wall(arena, Vector2(250, 220), Vector2(400, 20))
+	await _frames(60)
+	var moved := cat.position.distance_to(Vector2(250, 300))
+	_check(cat.state == Cat.State.IDLE and moved < 5.0, "cat_ignores_robot_behind_wall",
+		"state=%s moved=%.1f" % [Cat.State.keys()[cat.state], moved])
 	await _dispose(arena)
 
 
@@ -534,6 +555,13 @@ func _test_stars_for_time_left() -> void:
 	_check(stars == [3, 2, 2, 1, 1], "stars_for_time_left", "got %s, expected [3, 2, 2, 1, 1]" % [stars])
 
 
+func _test_warning_seconds() -> void:
+	# The red ticking countdown covers the last 10 s, or the last 40% of a short limit.
+	var got: Array[float] = [Level.warning_seconds(60.0), Level.warning_seconds(25.0), Level.warning_seconds(12.0)]
+	var ok := is_equal_approx(got[0], 10.0) and is_equal_approx(got[1], 10.0) and is_equal_approx(got[2], 4.8)
+	_check(ok, "warning_seconds", "got %s, expected [10, 10, 4.8]" % [got])
+
+
 func _test_next_index() -> void:
 	var saved_paths := _game.level_paths
 	_game.level_paths = ["a", "b", "c"]
@@ -607,11 +635,14 @@ func _test_time_up_fails_level() -> void:
 	Input.action_press("move_up")
 	await _frames(1)
 	Input.action_release("move_up")
-	await _frames(int(2.0 * FPS) + 5)
+	# A 2 s limit warns only for its last 0.8 s (40%), so the clock starts out normal.
+	await _frames(int(0.5 * FPS))
+	var calm_at_start := hud.timer_color() != Hud.WARNING_COLOR
+	await _frames(int(1.5 * FPS) + 5)
 	var frozen_at := level.time_left
 	await _frames(20)
 	var sfx_fail := level.get_node("%SfxFail") as AudioStreamPlayer
-	var ok := cat.state == Cat.State.FAILED and hud.banner_text() == Level.TIME_UP_TEXT \
+	var ok := calm_at_start and cat.state == Cat.State.FAILED and hud.banner_text() == Level.TIME_UP_TEXT \
 		and hud.timer_color() == Hud.WARNING_COLOR and not level.clock_running and level.time_left == frozen_at \
 		and hud.time_up_sound != null and sfx_fail.stream == hud.time_up_sound
 	_check(ok, "time_up_fails_level", "cat=%s banner='%s' red=%s running=%s sound=%s" % [Cat.State.keys()[cat.state],
@@ -650,8 +681,11 @@ func _test_clear_advances_to_next_level() -> void:
 ## level, >= 1.8 on levels 1-2, <= 1.5 on levels 7-8 and never rise from one
 ## level to the next.
 func _test_level_routes() -> void:
-	var ratios: Array[float] = []
 	var count := _game.LEVEL_PATHS.size()
+	# Per level; stays -1 for a level its route did not clear.
+	var ratios: Array[float] = []
+	ratios.resize(count)
+	ratios.fill(-1.0)
 	for i in count:
 		var level := await _load_level(-1.0, i)
 		var bot := level.get_node("%Robot") as Robot
@@ -667,10 +701,12 @@ func _test_level_routes() -> void:
 		while outcomes.is_empty() and settle < int(ROUTE_SETTLE * FPS):
 			await physics_frame
 			settle += 1
-		var used := level.time_limit - level.time_left
+		var limit := level.time_limit
+		var used := limit - level.time_left
+		var cat_at := cat.global_position
 		var stars: int = outcomes[0] if outcomes.size() == 1 else -1
 		if stars > 0:
-			ratios.append(level.time_limit / used)
+			ratios[i] = limit / used
 		var last := i == count - 1
 		var delay := _game.CLEAR_ADVANCE_DELAY + (_game.END_BANNER_DELAY if last else 0.0)
 		await _frames(int(delay * FPS) - RESTART_MARGIN_FRAMES)
@@ -679,18 +715,57 @@ func _test_level_routes() -> void:
 		var expected_path := _game.LEVEL_PATHS[0 if last else i + 1]
 		var loaded := current_scene != null and current_scene != level and current_scene.scene_file_path == expected_path
 		_check(stars == 3 and banner == (_game.END_TEXT if last else Level.CLEAR_TEXT) and loaded, name + "_route",
-			"stars=%d (-1 = not cleared) used=%.2f s of %.0f banner='%s' next_loaded=%s cat=%s" % [stars, used,
-			level.time_limit if is_instance_valid(level) else -1.0, banner, loaded, cat.global_position if is_instance_valid(cat) else Vector2.ZERO])
+			"stars=%d (-1 = not cleared) used=%.2f s of %.1f banner='%s' next_loaded=%s cat_at=%s" % [stars, used, limit,
+			banner, loaded, cat_at])
 		await _unload_level()
-	var rules_ok := ratios.size() == count
-	for i in ratios.size():
+	var rules_ok := true
+	for i in count:
 		rules_ok = rules_ok and ratios[i] >= 1.25 and (i > 1 or ratios[i] >= 1.8) and (i < count - 2 or ratios[i] <= 1.5) \
 			and (i == 0 or ratios[i] <= ratios[i - 1])
-	var shown := ", ".join(ratios.map(func(r: float) -> String: return "%.2f" % r))
+	var shown := ", ".join(range(count).map(func(i: int) -> String: return "L%d %.2f" % [i + 1, ratios[i]]))
 	print("test_gameplay: time limit / route clear time per level: " + shown)
 	_check(rules_ok, "level_time_limits", "limit / route time per level: " + shown)
 	_delete_test_save()
 	_game.load_progress()
+
+
+## Flying straight at the bed must not clear any level: each level's walls,
+## puddles, yarn and threats have to be worked around.
+func _test_level_beelines_fail() -> void:
+	for i in _game.LEVEL_PATHS.size():
+		var level := await _load_level(-1.0, i)
+		var cat := level.get_node("%Cat") as Cat
+		var outcomes: Array[bool] = []
+		level.finished.connect(func(cleared: bool, _stars: int) -> void: outcomes.append(cleared))
+		await _fly_route([(level.get_node("Bed") as Node2D).global_position], level.get_node("%Robot") as Robot, cat)
+		var settle := 0
+		while outcomes.is_empty() and settle < int(ROUTE_SETTLE * FPS):
+			await physics_frame
+			settle += 1
+		var state := Cat.State.keys()[cat.state] as String
+		_check(outcomes == [false], "level_%02d_beeline_fails" % (i + 1), "outcomes=%s (true = cleared) cat=%s" % [outcomes, state])
+		# Let Game's pending retry or advance happen before the level is unloaded.
+		var won := outcomes == [true]
+		var delay := _game.FAIL_RETRY_DELAY if not won else _game.CLEAR_ADVANCE_DELAY + _game.END_BANNER_DELAY
+		await _frames(int(delay * FPS) + RESTART_MARGIN_FRAMES)
+		await _unload_level()
+
+
+## Level 5's long walls punish leaving the cat behind with a nap.
+func _test_level_05_racing_ahead_naps() -> void:
+	var level := await _load_level(-1.0, 4)
+	var cat := level.get_node("%Cat") as Cat
+	var reasons: Array[String] = []
+	cat.failed.connect(func(reason: String, _sound: AudioStream) -> void: reasons.append(reason))
+	await _fly_route(LEVEL_05_RACE, level.get_node("%Robot") as Robot, cat)
+	var settle := 0
+	while reasons.is_empty() and settle < int(ROUTE_SETTLE * FPS):
+		await physics_frame
+		settle += 1
+	_check(reasons == [Cat.NAP_TEXT], "level_05_racing_ahead_naps", "fail reasons=%s cat=%s" % [reasons,
+		Cat.State.keys()[cat.state]])
+	await _frames(int(_game.FAIL_RETRY_DELAY * FPS) + RESTART_MARGIN_FRAMES)
+	await _unload_level()
 
 
 ## Mechanics the level lacks from LEVEL_MECHANICS, plus any it has before INTRODUCED_AT.
@@ -719,7 +794,8 @@ func _missing_mechanics(level: Level, index: int) -> Array[String]:
 
 
 ## Flies the robot along a LEVEL_ROUTES route until it ends or the level is over
-## for the cat. Like a player, it turns back for the cat when it falls behind.
+## for the cat. Like a player, it turns back for the cat when it falls behind
+## or has lost track of the robot (unless the step's pace is INF).
 func _fly_route(route: Array, bot: Robot, cat: Cat) -> void:
 	for step: Variant in route:
 		var frames := 0
@@ -736,23 +812,26 @@ func _fly_route(route: Array, bot: Robot, cat: Cat) -> void:
 			if offset.length() < ROUTE_REACH:
 				break
 			var behind := cat.global_position - bot.global_position
-			_steer(behind.normalized() if behind.length() > pace else offset.normalized())
+			var turn_back := pace < INF and (behind.length() > pace or cat.state == Cat.State.IDLE)
+			_steer(behind.normalized() if turn_back else offset.normalized())
 			await physics_frame
 			frames += 1
 	_steer(Vector2.ZERO)
 
 
-## Presses the move_* actions with analog strengths for `direction` (zero releases them).
+## Presses the move_* actions like a keyboard: `direction` snapped to the nearest
+## of 8 directions, each action fully on or off (zero releases them all).
 func _steer(direction: Vector2) -> void:
-	_press("move_right", direction.x)
-	_press("move_left", -direction.x)
-	_press("move_down", direction.y)
-	_press("move_up", -direction.y)
+	var keys := Vector2.ZERO if direction == Vector2.ZERO else Vector2.from_angle(snappedf(direction.angle(), PI / 4.0)).round()
+	_press("move_right", keys.x > 0.0)
+	_press("move_left", keys.x < 0.0)
+	_press("move_down", keys.y > 0.0)
+	_press("move_up", keys.y < 0.0)
 
 
-func _press(action: StringName, strength: float) -> void:
-	if strength > 0.001:
-		Input.action_press(action, strength)
+func _press(action: StringName, pressed: bool) -> void:
+	if pressed:
+		Input.action_press(action)
 	else:
 		Input.action_release(action)
 

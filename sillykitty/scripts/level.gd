@@ -8,8 +8,10 @@ signal finished(cleared: bool, stars: int)
 
 const CLEAR_TEXT := "Purrfect! Kitty is home."
 const TIME_UP_TEXT := "Time's up! Kitty lost interest."
-## The countdown turns red and ticks once per second from here down.
-const WARNING_SECONDS := 10
+## The countdown turns red and ticks once per second for the last 10 seconds,
+## or the last 40% of a shorter limit (see warning_seconds).
+const WARNING_SECONDS := 10.0
+const WARNING_FRACTION := 0.4
 ## Fractions of the time limit still left for 3 and 2 stars; any clear earns 1.
 ## Every time limit is at least 1.25x its level's scripted solution time, so a
 ## run at that pace always leaves 20% and earns 3 stars.
@@ -23,6 +25,7 @@ var time_left := 0.0
 var clock_running := false
 
 var _over := false
+var _warning := 0.0
 
 @onready var _game := get_node(GameState.AUTOLOAD_PATH) as GameState
 @onready var _robot: Robot = %Robot
@@ -30,6 +33,10 @@ var _over := false
 @onready var _hud: Hud = %Hud
 @onready var _sfx_fail: AudioStreamPlayer = %SfxFail
 @onready var _sfx_clear: AudioStreamPlayer = %SfxClear
+
+
+static func warning_seconds(limit: float) -> float:
+	return minf(WARNING_SECONDS, limit * WARNING_FRACTION)
 
 
 static func stars_for(seconds_left: float, limit: float) -> int:
@@ -42,6 +49,7 @@ static func stars_for(seconds_left: float, limit: float) -> int:
 
 func _ready() -> void:
 	time_left = time_limit
+	_warning = warning_seconds(time_limit)
 	var number := _game.level_number(scene_file_path)
 	if number == 0:
 		push_error("Level '%s' is not listed in GameState.LEVEL_PATHS" % scene_file_path)
@@ -65,8 +73,8 @@ func _process(delta: float) -> void:
 	var shown_before := ceili(time_left)
 	time_left = maxf(0.0, time_left - delta)
 	var shown_now := ceili(time_left)
-	_hud.set_time(time_left, shown_now <= WARNING_SECONDS)
-	if shown_now < shown_before and shown_now <= WARNING_SECONDS and shown_now > 0:
+	_hud.set_time(time_left, shown_now <= _warning)
+	if shown_now < shown_before and shown_now <= _warning and shown_now > 0:
 		_hud.play_tick()
 	if time_left <= 0.0:
 		_cat.time_up(TIME_UP_TEXT, _hud.time_up_sound)

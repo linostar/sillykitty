@@ -3,7 +3,8 @@ extends CharacterBody2D
 ## The AI cat. Every physics tick it scores each option (do nothing, follow the
 ## robot, play with a distraction, walk into its bed, flee a threat) and follows
 ## the best one. The current choice gets a hysteresis bonus so the cat does not
-## flicker. Distractions, beds and threats are only sensed in line of sight, and
+## flicker. The robot, distractions, beds and threats are only sensed in line of
+## sight (a robot out of sight leaves the cat idle, and its nap meter fills), and
 ## a target the cat cannot get closer to is given up for a while, so the cat
 ## never stays stuck (the player has no restart button). While it has nothing
 ## to do its nap meter fills; a full meter ends the level. All numbers come
@@ -177,7 +178,7 @@ func _think(delta: float) -> void:
 			best_state = State.FLEE
 
 	var robot_distance := global_position.distance_to(robot.global_position)
-	if robot_distance < tuning.interest_radius:
+	if robot_distance < tuning.interest_radius and _can_sense(robot):
 		var chase := tuning.chase_weight * (1.0 - tuning.chase_falloff * robot_distance / tuning.interest_radius)
 		chase += _bonus(State.CHASE_ROBOT)
 		if chase > best_score:

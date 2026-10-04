@@ -2,7 +2,8 @@
 // fresh browser profile, clears level 1 with a keyboard route, reloads the page
 // and confirms from the console log that the game resumed at level 2.
 // Usage: node tools/resume_web.mjs [buildDir]   (default: build/web)
-// Env:   RESUME_BOOT_TIMEOUT_MS (default 30000), RESUME_CLEAR_TIMEOUT_MS (default 25000)
+// Env:   RESUME_BOOT_TIMEOUT_MS (default 30000), RESUME_CLEAR_TIMEOUT_MS (default 25000),
+//        RESUME_FLUSH_MS (default 1500)
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchChrome, serveBuild } from './web_util.mjs';
@@ -11,11 +12,14 @@ const repoRoot = resolve(fileURLToPath(import.meta.url), '..', '..');
 const buildDir = resolve(process.argv[2] ?? join(repoRoot, 'build', 'web'));
 const bootTimeoutMs = Number(process.env.RESUME_BOOT_TIMEOUT_MS ?? 30000);
 const clearTimeoutMs = Number(process.env.RESUME_CLEAR_TIMEOUT_MS ?? 25000);
+// Godot writes user:// to IndexedDB asynchronously and reports no completion, so
+// the check waits this long after the save before reloading. Raise it on slow machines.
+const flushMs = Number(process.env.RESUME_FLUSH_MS ?? 1500);
 
 // Level 1 solved with the arrow keys only, anchored on the room walls so small
 // timing jitter does not matter: up to the top wall, right to the right wall,
 // then down beside the bed. [keys held, milliseconds]
-const LEVEL_1_KEYS = [[['ArrowUp'], 1600], [['ArrowRight'], 4000], [['ArrowDown'], 1600]];
+const LEVEL_1_KEYS = [[['ArrowUp'], 1800], [['ArrowRight'], 4000], [['ArrowDown'], 1600]];
 
 const failures = [];
 const log = [];
@@ -65,8 +69,7 @@ try {
   await logged(/^\[Game\] Level 1 cleared/, clearTimeoutMs, 'level 1 to be cleared');
   await logged(/^\[Game\] Saved progress .*furthest level 2/, 5000, 'the save after clearing level 1');
   await logged(/^\[Game\] Loading level 2\/\d+/, 10000, 'level 2 to load after the clear');
-  // Godot flushes user:// to IndexedDB asynchronously; give it time before reloading.
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(flushMs);
 
   log.length = 0;
   await page.reload({ timeout: bootTimeoutMs });
